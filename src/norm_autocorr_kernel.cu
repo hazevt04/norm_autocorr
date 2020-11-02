@@ -61,11 +61,6 @@ void complex_mags( float* __restrict__ mags, const cufftComplex* __restrict__ sa
 }
 
 
-__device__ __inline__
-cufftComplex complex_divide_by_scalar( cufftComplex cval, float scalar_divisor ) {
-   return make_cuFloatComplex( cval.x/scalar_divisor, cval.y/scalar_divisor );
-}
-
 __device__
 void moving_averages( 
       cufftComplex* __restrict__ conj_sqr_means, 

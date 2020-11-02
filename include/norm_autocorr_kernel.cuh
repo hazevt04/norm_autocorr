@@ -3,6 +3,11 @@
 #include "my_cuda_utils.hpp"
 #include "my_cufft_utils.hpp"
 
+__device__ __host__ __inline__
+cufftComplex complex_divide_by_scalar( cufftComplex cval, float scalar_divisor ) {
+   return make_cuFloatComplex( cval.x/scalar_divisor, cval.y/scalar_divisor );
+}
+
 template<typename T>
 __device__
 void delay16( T* delayed_vals, const T* vals, const int num_vals );
@@ -25,6 +30,7 @@ void moving_averages( cufftComplex* __restrict__ conj_sqr_means, float* __restri
 __device__
 void normalize( float* __restrict__ norms, const float* __restrict__ conj_sqr_mean_mags, 
    const float* __restrict__ mag_sqr_means, const int num_samples );
+
 
 __global__
 void norm_autocorr_kernel( 
