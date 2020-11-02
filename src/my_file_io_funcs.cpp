@@ -2,143 +2,66 @@
 
 #include "my_file_io_funcs.hpp"
 
-void write_binary_floats_file( float* vals, const char* filename, const int num_vals, 
-      const bool debug = false ) {
+void check_num_file_bytes(llong& num_file_bytes, const char* filename, const bool debug = false) {
 
-   std::ofstream ofile;
-   int val_num = 0;
-   std::streampos file_size;
-   std::ostringstream  err_msg_stream( std::ostringstream::ate );
    try {
-      ofile.open( filename, std::ios::out | std::ios::binary );
-      if ( ofile.is_open() ) {
-         std::streamsize val_size = num_vals * sizeof(float);
-         debug_printf( debug, "%s(): Val size is %zu bytes\n\n", __func__, val_size );
-         ofile.write( (char*)vals, val_size );
-      } else {
-         err_msg_stream << "Unable to open file, " << filename << ", for writing.";
-         throw std::runtime_error(err_msg_stream.str());
-      }
-      ofile.close();
-      if ( ( ofile.rdstate() & std::ofstream::failbit ) != 0 ) {
-         err_msg_stream << "Logical error while writing file, " << filename << ".";
-         throw std::runtime_error(err_msg_stream.str());
-      }
-      if ( ( ofile.rdstate() & std::ofstream::badbit ) != 0 ) {
-         err_msg_stream << "Write error while writing file, " << filename << ".";
-         throw std::runtime_error(err_msg_stream.str());
-      }
-   } catch( std::exception& ex ) {
-      printf( "Error: %s\n", ex.what() );
-   }
-}
-
-
-void check_file_size( long long& file_size, const char* filename, const bool debug = false) {
-   
-   std::ifstream ifile;
-   std::ostringstream  err_msg_stream( std::ostringstream::ate );
-   try {
-      ifile.open( filename, std::ios::in | std::ios::binary );
-      if ( ifile.is_open() ) {
+      std::ifstream ifile;
+      ifile.open(filename, std::ios::in | std::ios::binary);
+      if (ifile.is_open()) {
          // get length of file:
-         ifile.seekg (0, ifile.end);
-         file_size = (long long)ifile.tellg();
-         ifile.seekg (0, ifile.beg);
-         debug_printf( debug, "%s(): File size for %s is %llu bytes\n\n", __func__, filename, file_size ); 
+         ifile.seekg(0, ifile.end);
+         num_file_bytes = (llong)ifile.tellg();
+         ifile.seekg(0, ifile.beg);
+         debug_cout(
+            debug, __func__, "(): File size for ", filename, " is ", num_file_bytes, " bytes\n\n");
       } else {
-         err_msg_stream << "Unable to open file, " << filename << ", for checking filesize.";
-         throw std::runtime_error(err_msg_stream.str());
+         throw std::runtime_error{std::string{"Unable to open file, "} + filename +
+            std::string{", for checking filesize."}};
       }
-      ifile.close();
-   } catch( std::exception& ex ) {
-      printf( "Error: %s\n", ex.what() );
-      if ( ifile.is_open() ) {
-         ifile.close();
-      }
-      exit(EXIT_FAILURE);
+   } catch (std::exception& ex) {
+      throw std::runtime_error{std::string{__func__} + std::string{"(): "} + ex.what()};
    } // end of catch
-   
-}
+
+} // end of void check_num_file_bytes()
 
 
-void read_binary_floats_file( float* vals, const char* filename, const int num_vals, const bool debug = false ) {
-   
-   std::ifstream ifile;
-   int val_num = 0;
-   std::streampos file_size;
-   std::ostringstream  err_msg_stream( std::ostringstream::ate );
+void test_my_file_io_funcs(
+   std::string filename, const int num_vals, const bool inject_error, const bool debug) {
    try {
-      ifile.open( filename, std::ios::in | std::ios::binary );
-      if ( ifile.is_open() ) {
-         size_t val_size = num_vals * sizeof(float);
-         debug_printf( debug, "%s(): Val size is %zu bytes\n", __func__, val_size ); 
-         ifile.seekg (0, ifile.end);
-         long long file_size = (long long)ifile.tellg();
-         ifile.seekg (0, ifile.beg);
-         debug_printf( debug, "%s(): File size is %llu bytes\n\n", __func__, (long long)file_size ); 
-         if ( file_size < val_size ) {
-            err_msg_stream << "Expected file size, " << file_size << " bytes, less than expected: "
-               << val_size << " bytes, for file " << filename << ".";
-            throw std::runtime_error(err_msg_stream.str());
-         }
-         ifile.read( (char*)vals, file_size );
-         ifile.close();
-      } else {
-         err_msg_stream << "Unable to open file: " << filename << ".";
-         throw std::runtime_error(err_msg_stream.str());
-      } // end of if ( ifile.is_open() ) {
-   } catch( std::exception& ex ) {
-      printf( "Error: %s\n", ex.what() ); 
-      if ( ifile.is_open() ) {
-         ifile.close();
-      }
-      exit(EXIT_FAILURE);
-   }
-}
+      llong num_file_bytes = 0;
 
+      std::vector<float> write_vals(num_vals);
+      std::vector<float> read_vals(num_vals);
 
-void test_my_file_io_funcs( std::string filename, const int num_vals, const bool inject_error, const bool debug ) {
-   try {
-      long long file_size = 0;
+      gen_vals<float>(write_vals, 0, num_vals);
+      print_vals<float>(write_vals, "Write Vals:\n");
 
-      float* write_vals = new float[ num_vals * sizeof( float ) ];
-      float* read_vals = new float[ num_vals * sizeof( float ) ];
-      std::ostringstream err_msg_stream( std::ostringstream::ate );
-      
-      gen_vals<float>( write_vals, 100, 0, num_vals );
-      printf( "Write Values:\n" );
-      printf_floats( write_vals, num_vals );
+      debug_cout(debug, "The input text file is ", filename, "\n");
 
-      debug_printf( debug, "The input text file is %s\n", filename.c_str() ); 
+      write_binary_file(write_vals, filename.c_str(), debug);
 
-      write_binary_floats_file( write_vals, filename.c_str(), num_vals, debug );
+      check_num_file_bytes(num_file_bytes, filename.c_str(), debug);
 
-      check_file_size( file_size, filename.c_str(), debug ); 
-
-      if ( inject_error ) {
+      if (inject_error) {
          filename = "wrong_file.bin";
       }
 
-      read_binary_floats_file( read_vals, filename.c_str(), num_vals, debug ); 
-      
-      printf( "Read Values:\n" );
-      printf_floats( read_vals, num_vals );
+      read_binary_file(read_vals, filename.c_str(), debug);
 
-      int num_mismatches = 0;
-      if ( !compare_floats( read_vals, write_vals, num_vals ) ) {
-         err_msg_stream <<  "Values read from " << filename 
-            << " don't match values written";      
-         throw std::runtime_error( err_msg_stream.str() );
+      print_vals<float>(read_vals, "Read Vals:\n");
+
+      bool vals_match = compare_vals<float>(read_vals, write_vals); 
+      if ( !vals_match ) {
+         throw std::runtime_error{std::string{"Values read from "} + filename +
+            std::string{" don't match values written."}};
       } else {
-         printf( "All %d values read from %s matched the values written\n", 
-               num_vals, filename.c_str() );
+         std::cout << "All " << num_vals << " values read from " << filename
+                   << " matched the values written\n";
       }
 
-   } catch ( std::exception& ex ) {
-      printf( "ERROR: %s\n", ex.what() ); 
+   } catch (std::exception& ex) {
+      throw std::runtime_error{std::string{__func__} + std::string{"(): "} + ex.what()};
    }
-
 }
 
 
