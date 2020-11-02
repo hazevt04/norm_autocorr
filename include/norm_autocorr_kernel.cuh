@@ -27,7 +27,7 @@ void normalize( float* __restrict__ norms, const float* __restrict__ conj_sqr_me
    const float* __restrict__ mag_sqr_means, const int num_samples );
 
 __global__
-void norm_auto_kernel( 
+void norm_autocorr_kernel( 
    float* __restrict__ norms, 
    float* __restrict__ mag_sqr_means, 
    float* __restrict__ mag_sqrs, 
@@ -38,4 +38,5 @@ void norm_auto_kernel(
    const cufftComplex* __restrict__ samples, 
    const int conj_sqr_window_size, 
    const int mag_sqr_window_size,
-   const int num_samples );
+   const int num_samples 
+);

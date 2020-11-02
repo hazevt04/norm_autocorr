@@ -65,6 +65,9 @@
    }
 #endif
 
+#ifndef dout
+# define dout debug && std::cout
+#endif
 
 #ifndef SWAP
 #  define SWAP(a,b) { \
@@ -121,10 +124,19 @@ void gen_vals( T* vals, const T lower, const T upper, const int num_vals ) {
 }
 
 template <class T>
-void print_vec( const std::vector<T>& vals, const char* prefix = "", const char* delim = " " ) {
+void print_vec( const std::vector<T>& vals, const char* prefix = "", const char* delim = " ", const char* suffix = "\n" ) {
    std::cout << prefix;
    std::copy( std::begin(vals), std::end(vals),  std::ostream_iterator<T>(std::cout, delim) );
-   std::cout << "\n";
+   std::cout << suffix;
+}
+
+template <class T>
+void print_vals( const T* vals, const int num_vals, const char* prefix = "", const char* delim = " ", const char* suffix = "\n" ) {
+   std::cout << prefix;
+   for( int index = 0; index < num_vals; ++index ) {
+      std::cout << vals[index] << delim;   
+   } 
+   std::cout << suffix;
 }
 
 void printf_floats( float* const vals, const int num_vals );

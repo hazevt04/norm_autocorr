@@ -75,11 +75,12 @@ inline const std::string get_cufft_status_msg(const cufftResult cufft_status) {
   } \
 }
 
-#define check_cufft_status_throw(cufft_status) { \
-  if ( cufft_status != CUFFT_SUCCESS ) { \
-   throw std::runtime_error( get_cufft_status_msg( cufft_status ) ); \
+#define check_cufft_status_throw(cufft_status,loc) { \
+  if ( cerror != cudaSuccess ) { \
+    throw std::runtime_error{ std::string{ std::string{""#loc ": "} + std::string{get_cufft_status_msg(cufft_status)} + "(" + std::to_string(ccufft_status) + ")" } }; \
   } \
 }
+
 
 #define try_cufft_func(cufft_status, func) { \
   cufft_status = func; \
@@ -98,6 +99,6 @@ inline const std::string get_cufft_status_msg(const cufftResult cufft_status) {
 
 #define try_cufft_func_throw(cufft_status, func) { \
   cufft_status = func; \
-  check_cufft_status_throw( cufft_status ); \
+  check_cufft_status_throw( cufft_status, func ); \
 }
 

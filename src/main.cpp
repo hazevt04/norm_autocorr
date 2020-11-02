@@ -1,14 +1,18 @@
 // C++ File for main
 
-#include "NormAutoGPU.cuh"
+#include "NormAutocorrGPU.cuh"
 
 int main(int argc, char **argv) {
    try {
       int num_vals = 4000;
-      std::cout << "Number of Vals = " << num_vals << "\n"; 
+      int conj_window_size = 48;
+      int mag_sqrs_window_size = 64;
+      int max_num_iters = 4000;
       bool debug = false;
-      NormAutoGPU norm_auto_gpu{ num_vals, debug };
-      norm_auto_gpu.run();
+      
+      std::cout << "Number of Vals = " << num_vals << "\n"; 
+      NormAutocorrGPU norm_autocorr_gpu{ num_vals, conj_window_size, mag_sqrs_window_size, max_num_iters, debug };
+      norm_autocorr_gpu.run();
       return EXIT_SUCCESS;
 
    } catch( std::exception& ex ) {

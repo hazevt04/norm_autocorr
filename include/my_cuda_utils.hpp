@@ -60,10 +60,9 @@ inline void try_cudaStreamCreate( cudaStream_t* pStream ) {
 
 #define check_cuda_error_throw(cerror,loc) { \
   if ( cerror != cudaSuccess ) { \
-    throw std::runtime_error( cudaGetErrorString( cerror ) ); \
+    throw std::runtime_error{ std::string{ std::string{""#loc ": "} + std::string{cudaGetErrorString(cerror)} + "(" + std::to_string(cerror) + ")" } }; \
   } \
 }
-
 
 #define try_cuda_func(cerror, func) { \
   cerror = func; \

@@ -4,14 +4,15 @@
 
 #include "my_cuda_utils.hpp"
 
-#include "norm_auto_kernel.cuh"
+#include "norm_autocorr_kernel.cuh"
 
+#include "device_allocator.hpp"
 #include "managed_allocator_global.hpp"
-#include "managed_allocator.hpp"
+#include "managed_allocator_host.hpp"
 
 #include "VariadicToOutputStream.hpp"
 
-class NormAutoGPU {
+class NormAutocorrGPU {
 private:
    managed_vector_host<cufftComplex> samples;
    device_vector<cufftComplex> samples_d16;
@@ -31,15 +32,15 @@ private:
    std::unique_ptr<cudaStream_t> stream_ptr;
 
 public:
-   NormAutoGPU():
-      num_samples(0),
-      conj_window_size(0),
-      mag_sqrs_window_size(0),
-      max_num_iters(0),
+   NormAutocorrGPU():
+      num_samples(4000),
+      conj_window_size(48),
+      mag_sqrs_window_size(64),
+      max_num_iters(4000),
       debug(false) {}
    
    
-   NormAutoGPU( 
+   NormAutocorrGPU( 
       int new_num_samples, 
       int new_conj_window_size,
       int new_mag_sqrs_window_size,
@@ -58,7 +59,6 @@ public:
          conj_sqrs.reserve( num_samples );
          conj_sqr_means.reserve( num_samples );
          conj_sqr_mean_mags.reserve( num_samples );
-         conj_sqr_mean_mags.reserve( num_samples );
          mag_sqrs.reserve( num_samples );
          mag_sqr_means.reserve( num_samples );
          norms.reserve( num_samples );
@@ -70,7 +70,7 @@ public:
 
       } catch( std::exception& ex ) {
          throw std::runtime_error{
-            std::string{__func__} + std::string{"(): "} + ex.what(); 
+            std::string{__func__} + std::string{"(): "} + ex.what()
          }; 
       }
    }
@@ -80,22 +80,28 @@ public:
       gen_cufftComplexes( samples.data(), num_samples, -50.0, 50.0 );
 
       if (debug) {
-         print_vec<cufftComplex>( samples, num_samples, "Generated Samples:\n", " " ); 
+         print_cufftComplexes( samples.data(), num_samples, "Samples: ",  " ",  "\n" ); 
       }
    }
 
    void run();
    
    void print_results( const std::string& prefix = "Norms: " ) {
-      print_vec<float>( norms, num_samples, prefix.data(), " " );
+      print_vals<float>( norms.data(), num_samples, "Norms: ",  " ",  "\n" );
    }
 
-   ~NormAutoGPU() {
-      debug_cout( debug, "dtor called\n" );
+   ~NormAutocorrGPU() {
+      dout << "dtor called\n";
       samples.clear();    
+      samples_d16.clear();
+      conj_sqrs.clear();
+      conj_sqr_means.clear();
+      conj_sqr_mean_mags.clear();
+      mag_sqrs.clear();
+      mag_sqr_means.clear();
       norms.clear();
       if ( stream_ptr ) cudaStreamDestroy( *(stream_ptr.get()) );
-      debug_cout( debug, "dtor done\n" );
+      dout << "dtor done\n";
    }
 
 };

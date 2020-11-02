@@ -1,5 +1,7 @@
-#include "norm_auto_kernel.cuh"
-#include "cufft_utils.hpp"
+
+#include "my_cufft_utils.hpp"
+
+#include "norm_autocorr_kernel.cuh"
 
 template<typename T>
 __device__
@@ -58,10 +60,22 @@ void complex_mags( float* __restrict__ mags, const cufftComplex* __restrict__ sa
    }
 }
 
+
+__device__ __inline__
+cufftComplex complex_divide_by_scalar( cufftComplex cval, float scalar_divisor ) {
+   return make_cuFloatComplex( cval.x/scalar_divisor, cval.y/scalar_divisor );
+}
+
 __device__
-void moving_averages( cufftComplex* __restrict__ conj_sqr_means, float* __restrict__ mag_sqr_means, 
-      const cufftComplex* __restrict__ conj_sqrs, const float* __restrict__ mag_sqrs,
-      const int conj_sqr_window_size, const int mag_sqr_window_size, const int num_vals ) { 
+void moving_averages( 
+      cufftComplex* __restrict__ conj_sqr_means, 
+      float* __restrict__ mag_sqr_means, 
+      const cufftComplex* __restrict__ conj_sqrs, 
+      const float* __restrict__ mag_sqrs,
+      const int conj_sqr_window_size, 
+      const int mag_sqr_window_size, 
+      const int num_vals 
+   ) { 
 
    int global_index = blockDim.x * blockIdx.x + threadIdx.x;
    int stride = blockDim.x * gridDim.x;
@@ -75,8 +89,8 @@ void moving_averages( cufftComplex* __restrict__ conj_sqr_means, float* __restri
       for( int w_index = 0; w_index < mag_sqr_window_size; ++w_index ) {
          t_mag_sqr_sum = t_mag_sqr_sum + mag_sqrs[index + w_index];
       }
-      conj_sqr_means[index] = complex_divide_by_scalar( t_mag_sqr_sum, (float)window_size );
-      mag_sqr_means[index] = t_mag_sqr_sum/(float)window_size;
+      conj_sqr_means[index] = complex_divide_by_scalar( t_conj_sqr_sum, (float)conj_sqr_window_size );
+      mag_sqr_means[index] = t_mag_sqr_sum/(float)mag_sqr_window_size;
    }
 
 }
@@ -88,14 +102,14 @@ void normalize( float* __restrict__ norms, const float* __restrict__ conj_sqr_me
    int global_index = blockDim.x * blockIdx.x + threadIdx.x;
    int stride = blockDim.x * gridDim.x;
 
-   for (int index = global_index; index < num_vals; index += stride) {
+   for (int index = global_index; index < num_samples; index += stride) {
       norms[index] =  conj_sqr_mean_mags[index]/mag_sqr_means[index];  
    }
 
 }
 
 __global__
-void norm_auto_kernel( 
+void norm_autocorr_kernel( 
    float* __restrict__ norms, 
    float* __restrict__ mag_sqr_means, 
    float* __restrict__ mag_sqrs, 
