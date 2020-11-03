@@ -26,13 +26,13 @@ private:
    device_vector<float> mag_sqr_means;
    managed_vector_global<float> norms;
 
-   std::vector<cufftComplex> exp_samples_d16;
-   std::vector<cufftComplex> exp_conj_sqrs;
-   std::vector<cufftComplex> exp_conj_sqr_means;
-   std::vector<float> exp_conj_sqr_mean_mags;
-   std::vector<float> exp_mag_sqrs;
-   std::vector<float> exp_mag_sqr_means;
-   std::vector<float> exp_norms;
+   cufftComplex* exp_samples_d16;
+   cufftComplex* exp_conj_sqrs;
+   cufftComplex* exp_conj_sqr_means;
+   float* exp_conj_sqr_mean_mags;
+   float* exp_mag_sqrs;
+   float* exp_mag_sqr_means;
+   float* exp_norms;
 
    int num_samples;
    int conj_sqrs_window_size;
@@ -42,22 +42,35 @@ private:
 
    std::unique_ptr<cudaStream_t> stream_ptr;
 
-   inline void delay_vals16( std::vector<cufftComplex>& dvals, const managed_vector_host<cufftComplex>& vals, const bool debug=false ) {
+   inline void delay_vals16() {
       
-      /*auto skip_it = dvals.begin();*/
-      /*std:advance( skip_it, 16 );*/
-      
-      /*std::fill( dvals.begin(), skip_it, make_cuFloatComplex(0.f,0.f) );*/
-      std::fill( dvals.begin(), dvals.begin() + 16, make_cuFloatComplex(0.f,0.f) );
-      std::copy( vals.begin(), vals.end(), dvals.begin() + 16 );
+      dout << __func__ << "() start\n";
+      dout << __func__ << "() samples.size() is " << samples.size() << "\n";
+      dout << __func__ << "() samples[0] is " << samples[0] << "\n";
+      dout << __func__ << "() samples[1] is " << samples[1] << "\n";
+
+      for( int index = 0; index < num_samples; ++index ) {
+         if ( index < 16 ) {
+            dout << __func__ << "() index: " << index << "\n";
+            exp_samples_d16[index] = make_cuFloatComplex(0.f, 0.f);
+         } else {
+            dout << __func__ << "() index greater than or equal to 16: " << index << "\n";
+            exp_samples_d16[index] = samples[index-16]; 
+         }
+      } 
+
+      dout << __func__ << "() exp_samples_d16[15] is " << exp_samples_d16[15] << "\n";
+      dout << __func__ << "() exp_samples_d16[16] is " << exp_samples_d16[16] << "\n";
+      dout << __func__ << "() exp_samples_d16[17] is " << exp_samples_d16[17] << "\n";
+      dout << __func__ << "() done\n";
    }   
 
-   void calc_norms( std::vector<float>& norms, const std::vector<float>& vals, const std::vector<float>& divisors );
-   void calc_mags( std::vector<float>& mags, const std::vector<cufftComplex>& vals );
-   void calc_complex_mag_squares( std::vector<float>& mag_sqrs, const managed_vector_host<cufftComplex>& vals ); 
-   void calc_auto_corrs( std::vector<cufftComplex>& auto_corrs, const managed_vector_host<cufftComplex>& lvals, const std::vector<cufftComplex>& rvals );
-   void calc_comp_moving_avgs( std::vector<cufftComplex>& avgs, const std::vector<cufftComplex>& vals, const int window_size );
-   void calc_moving_avgs( std::vector<float>& avgs, const std::vector<float>& vals, const int window_size );
+   void calc_norms();
+   void calc_mags();
+   void calc_complex_mag_squares(); 
+   void calc_auto_corrs();
+   void calc_exp_conj_sqr_means();
+   void calc_exp_mag_sqr_means();
 
 public:
    NormAutocorrGPU():
@@ -90,7 +103,14 @@ public:
          mag_sqrs.reserve( num_samples );
          mag_sqr_means.reserve( num_samples );
          norms.reserve( num_samples );
-         debug_cout( debug, __func__, "(): after reserving vectors for sums, lvals and rvals\n" );
+
+         exp_samples_d16 = new cufftComplex[num_samples];
+         exp_conj_sqrs = new cufftComplex[num_samples];
+         exp_conj_sqr_means = new cufftComplex[num_samples];
+         exp_conj_sqr_mean_mags = new float[num_samples];
+         exp_mag_sqrs = new float[num_samples];
+         exp_mag_sqr_means = new float[num_samples];
+         exp_norms = new float[num_samples];
 
          stream_ptr = my_make_unique<cudaStream_t>();
          try_cudaStreamCreate( stream_ptr.get() );

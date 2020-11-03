@@ -11,6 +11,20 @@
 /////////////////////////////
 // CUFFT Stuff
 /////////////////////////////
+
+// Finally, I can std::cout << cufftComplexValue ?
+template<class _CharT, class _Traits>
+std::basic_ostream<_CharT, _Traits>&
+operator<<(std::basic_ostream<_CharT, _Traits>& __os, const cufftComplex& __c) {
+    std::basic_ostringstream<_CharT, _Traits> __s;
+    __s.flags(__os.flags());
+    __s.imbue(__os.getloc());
+    __s.precision(__os.precision());
+    __s << "{" << __c.x << ", " << __c.y << "}";
+    return __os << __s.str();
+}
+
+
 void gen_cufftComplexes( cufftComplex* complexes, const int num_complexes, const float lower, const float upper ); 
 
 bool cufftComplexes_are_close( const cufftComplex* lvals, const cufftComplex* rvals, 

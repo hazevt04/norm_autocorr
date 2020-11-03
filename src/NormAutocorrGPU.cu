@@ -24,10 +24,12 @@ void NormAutocorrGPU::run() {
       debug_cout( debug, __func__, "(): num_blocks is ", num_blocks, "\n" ); 
 
       gen_data();
+      gen_expected_norms();
       
-      debug_cout( debug, __func__, "(): samples.size() is ", samples.size(), "\n" ); 
+      debug_cout( debug, __func__, "(): num_samples is ", num_samples, "\n" ); 
       
       print_cufftComplexes( samples.data(), num_samples, "Samples: ", " ", "\n" ); 
+      print_vals( exp_norms, num_samples, "Expected Norms: ", " ", "\n" ); 
 
       cudaStreamAttachMemAsync( *(stream_ptr.get()), samples.data(), 0, cudaMemAttachGlobal );
 
@@ -50,11 +52,18 @@ void NormAutocorrGPU::run() {
       
       try_cuda_func_throw( cerror, cudaStreamSynchronize( *(stream_ptr.get())  ) );
       
-      // norms.size() is 0 because the add_kernel modified the data and not a std::vector function
-      debug_cout( debug, __func__, "(): norms.size() is ", norms.size(), "\n" ); 
+      // num_samples is 0 because the add_kernel modified the data and not a std::vector function
+      debug_cout( debug, __func__, "(): num_samples is ", num_samples, "\n" ); 
 
       print_results( "Norms: " );
       std::cout << "\n"; 
+
+      float max_diff = 1e-1;
+      bool all_close = vals_are_close( norms.data(), exp_norms, num_samples, max_diff, debug );
+      if (!all_close) {
+         throw std::runtime_error{ std::string{__func__} + 
+            std::string{"(): Mismatch between actual norms from GPU and expected norms."} };
+      }
 
    } catch( std::exception& ex ) {
       std::cout << __func__ << "(): " << ex.what() << "\n"; 
@@ -62,93 +71,90 @@ void NormAutocorrGPU::run() {
 }
 
 
-void NormAutocorrGPU::calc_norms( std::vector<float>& norms, const std::vector<float>& vals, const std::vector<float>& divisors ) {
+void NormAutocorrGPU::calc_norms() {
    
-   for( size_t index = 0; index != vals.size(); ++index ) {
-      norms[index] = vals[index]/divisors[index];
+   for( int index = 0; index < num_samples; ++index ) {
+      exp_norms[index] = exp_conj_sqr_mean_mags[index]/exp_mag_sqr_means[index];
    } 
 
 }
 
 
-void NormAutocorrGPU::calc_mags( std::vector<float>& mags, const std::vector<cufftComplex>& vals ) {
+void NormAutocorrGPU::calc_mags() {
    
-   for( size_t index = 0; index != vals.size(); ++index ) {
-      mags[index] = cuCabsf( vals[index] );
+   for( int index = 0; index < num_samples; ++index ) {
+      exp_conj_sqr_mean_mags[index] = cuCabsf( exp_conj_sqr_means[index] );
    } 
 
 }
 
 
-void NormAutocorrGPU::calc_complex_mag_squares( std::vector<float>& mag_sqrs, const managed_vector_host<cufftComplex>& vals ) {
+void NormAutocorrGPU::calc_complex_mag_squares() {
 
-   for( size_t index = 0; index != vals.size(); ++index ) {
-      float temp = cuCabsf( vals[index] );
-      mag_sqrs[index] = temp * temp;
+   for( int index = 0; index < num_samples; ++index ) {
+      float temp = cuCabsf( samples[index] );
+      exp_mag_sqrs[index] = temp * temp;
    } 
 }
 
 
-void NormAutocorrGPU::calc_auto_corrs( std::vector<cufftComplex>& auto_corrs, const managed_vector_host<cufftComplex>& lvals, const std::vector<cufftComplex>& rvals ) {
+void NormAutocorrGPU::calc_auto_corrs() {
    
-   for( size_t index = 0; index != lvals.size(); ++index ) {
-      auto_corrs[index] = cuCmulf( lvals[index], cuConjf( rvals[index] ) );
+   dout << __func__ << "() start\n";
+   for( int index = 0; index < num_samples; ++index ) {
+      exp_conj_sqrs[index] = cuCmulf( samples[index], cuConjf( exp_samples_d16[index] ) );
    } 
+   dout << __func__ << "() end\n";
 }
 
-void NormAutocorrGPU::calc_comp_moving_avgs( std::vector<cufftComplex>& avgs, const std::vector<cufftComplex>& vals, const int window_size ) {
+void NormAutocorrGPU::calc_exp_conj_sqr_means() {
 
-   // avgs must already be all zeros
-   for( size_t index = 0; index != window_size; ++index ) {
-      avgs[0] = cuCaddf( avgs[0], vals[index] );
+   // exp_conj_sqr_means must already be all zeros
+   for( int index = 0; index < conj_sqrs_window_size; ++index ) {
+      exp_conj_sqr_means[0] = cuCaddf( exp_conj_sqr_means[0], exp_conj_sqrs[index] );
    }
       
-   int num_sums = vals.size() - window_size;
-   for( size_t index = 1; index != num_sums; ++index ) {
-      avgs[index] = cuCsubf( cuCaddf( avgs[index-1], vals[index + window_size-1] ), vals[index-1] );
+   int num_sums = num_samples - conj_sqrs_window_size;
+   for( int index = 1; index < num_sums; ++index ) {
+      exp_conj_sqr_means[index] = cuCsubf( cuCaddf( exp_conj_sqr_means[index-1], exp_conj_sqrs[index + conj_sqrs_window_size-1] ), 
+         exp_conj_sqrs[index-1] );
    } 
 
-   for( size_t index = 0; index != avgs.size(); ++index ) {
-      avgs[index] = complex_divide_by_scalar( avgs[index], (float)window_size );
+   for( int index = 0; index < num_samples; ++index ) {
+      exp_conj_sqr_means[index] = complex_divide_by_scalar( exp_conj_sqr_means[index], (float)conj_sqrs_window_size );
    } 
 }
 
 
-void NormAutocorrGPU::calc_moving_avgs( std::vector<float>& avgs, const std::vector<float>& vals, const int window_size ) {
+void NormAutocorrGPU::calc_exp_mag_sqr_means() {
 
-   // avgs must already be all zeros
-   for( size_t index = 0; index != window_size; ++index ) {
-      avgs[0] = avgs[0] + vals[index];
+   // exp_mag_sqr_means must already be all zeros
+   for( int index = 0; index < mag_sqrs_window_size; ++index ) {
+      exp_mag_sqr_means[0] = exp_mag_sqr_means[0] + exp_mag_sqrs[index];
    }
       
-   int num_sums = vals.size() - window_size;
-   for( size_t index = 1; index != num_sums; ++index ) {
-      avgs[index] = avgs[index-1] + vals[index + window_size-1] - vals[index-1];
+   int num_sums = num_samples - mag_sqrs_window_size;
+   for( int index = 1; index < num_sums; ++index ) {
+      exp_mag_sqr_means[index] = exp_mag_sqr_means[index-1] + exp_mag_sqrs[index + mag_sqrs_window_size-1] - exp_mag_sqrs[index-1];
    } 
 
-   for( size_t index = 0; index != avgs.size(); ++index ) {
-      avgs[index] = avgs[index]/(float)window_size;
+   for( int index = 0; index  < num_samples; ++index ) {
+      exp_mag_sqr_means[index] = exp_mag_sqr_means[index]/(float)mag_sqrs_window_size;
    } 
 }
 
 
 void NormAutocorrGPU::gen_expected_norms() {
     
-   exp_samples_d16.reserve( num_samples );
-   exp_conj_sqrs.reserve( num_samples );
-   exp_conj_sqr_means.reserve( num_samples );
-   exp_conj_sqr_mean_mags.reserve( num_samples );
-   exp_mag_sqrs.reserve( num_samples );
-   exp_mag_sqr_means.reserve( num_samples );
-   exp_norms.reserve( num_samples );
+   dout << "num_samples is " << num_samples << "\n";
 
-   delay_vals16( exp_samples_d16, samples, debug );
-   calc_auto_corrs( exp_conj_sqrs, samples, exp_samples_d16 );
-   calc_comp_moving_avgs( exp_conj_sqr_means, exp_conj_sqrs, conj_sqrs_window_size );
-   calc_mags( exp_conj_sqr_mean_mags, exp_conj_sqr_means );
+   delay_vals16();
+   calc_auto_corrs();
+   calc_exp_conj_sqr_means();
+   calc_mags();
    
-   calc_complex_mag_squares( exp_mag_sqrs, samples );
-   calc_moving_avgs( exp_mag_sqr_means, exp_mag_sqrs, mag_sqrs_window_size );
+   calc_exp_conj_sqr_means();
+   calc_exp_mag_sqr_means();
    
-   calc_norms( exp_norms, exp_conj_sqr_mean_mags, exp_mag_sqr_means );
+   calc_norms();
 }
