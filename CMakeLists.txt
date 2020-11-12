@@ -7,7 +7,6 @@ LIST(APPEND CUDA_NVCC_FLAGS "--use_fast_math")
 
 set(CUDA_VERBOSE_BUILD ON)
 
-
 find_package(CUDA REQUIRED)
 cuda_select_nvcc_arch_flags(ARCH_FLAGS Auto)
 

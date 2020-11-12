@@ -112,6 +112,16 @@ public:
          exp_mag_sqr_means = new float[num_samples];
          exp_norms = new float[num_samples];
 
+         for( int index = 0; index < num_samples; ++index ) {
+            exp_samples_d16[index] = make_cuFloatComplex( 0.f, 0.f );
+            exp_conj_sqrs[index] = make_cuFloatComplex( 0.f, 0.f );
+            exp_conj_sqr_means[index] = make_cuFloatComplex( 0.f, 0.f );
+            exp_conj_sqr_mean_mags[index] = 0.f;
+            exp_mag_sqrs[index] = 0.f;
+            exp_mag_sqr_means[index] = 0.f;
+            exp_norms[index] = 0.f;
+         } 
+
          stream_ptr = my_make_unique<cudaStream_t>();
          try_cudaStreamCreate( stream_ptr.get() );
          debug_cout( debug, __func__,  "(): after cudaStreamCreate()\n" ); 
