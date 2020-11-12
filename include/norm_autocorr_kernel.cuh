@@ -8,24 +8,47 @@ cufftComplex complex_divide_by_scalar( cufftComplex cval, float scalar_divisor )
    return make_cuFloatComplex( cval.x/scalar_divisor, cval.y/scalar_divisor );
 }
 
+
 template<typename T>
 __device__
 void delay16( T* delayed_vals, const T* vals, const int num_vals );
 
-__device__
-void auto_correlation( cufftComplex* __restrict__ conj_sqrs, const cufftComplex* __restrict__ samples_d16,
-   const cufftComplex* __restrict__ samples, const int num_vals );
 
 __device__
-void complex_mag_squared( float* __restrict__ mag_sqrs, const cufftComplex* __restrict__ samples, const int num_vals );
+void auto_correlation( 
+   cufftComplex* __restrict__ conj_sqrs, 
+   const cufftComplex* __restrict__ samples_d16,
+   const cufftComplex* __restrict__ samples, 
+   const int num_vals 
+);
+
 
 __device__
-void complex_mags( float* __restrict__ mags, const cufftComplex* __restrict__ samples, const int num_vals );
+void calc_conj_sqr_means( 
+   cufftComplex* __restrict__ conj_sqr_means, 
+   const cufftComplex* __restrict__ conj_sqrs, 
+   const int conj_sqr_window_size, 
+   const int num_vals 
+);
 
 __device__
-void moving_averages( cufftComplex* __restrict__ conj_sqr_means, float* __restrict__ mag_sqr_means, 
-      const cufftComplex* __restrict__ conj_sqrs, const float* __restrict__ mag_sqrs,
-      const int conj_sqr_window_size, const int mag_sqr_window_size, const int num_vals );
+void calc_conj_sqr_mean_mags( float* __restrict__ conj_sqr_mean_mags, const cufftComplex* __restrict__ conj_sqr_means, const int num_vals );
+
+
+__device__
+void calc_mag_sqrs( 
+   float* __restrict__ mag_sqrs, 
+   const cufftComplex* __restrict__ samples, 
+   const int num_vals 
+);
+
+__device__
+void calc_mag_sqr_means( 
+   float* __restrict__ mag_sqr_means, 
+   const float* __restrict__ mag_sqrs,
+   const int mag_sqr_window_size, 
+   const int num_vals 
+);
 
 __device__
 void normalize( float* __restrict__ norms, const float* __restrict__ conj_sqr_mean_mags, 

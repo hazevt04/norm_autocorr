@@ -62,13 +62,10 @@ void complex_mags( float* __restrict__ mags, const cufftComplex* __restrict__ sa
 
 
 __device__
-void moving_averages( 
+void calc_conj_sqr_means( 
       cufftComplex* __restrict__ conj_sqr_means, 
-      float* __restrict__ mag_sqr_means, 
       const cufftComplex* __restrict__ conj_sqrs, 
-      const float* __restrict__ mag_sqrs,
       const int conj_sqr_window_size, 
-      const int mag_sqr_window_size, 
       const int num_vals 
    ) { 
 
@@ -77,18 +74,35 @@ void moving_averages(
 
    for (int index = global_index; index < num_vals; index += stride) {
       cufftComplex  t_conj_sqr_sum = make_cuFloatComplex(0.0,0.0);
-      float  t_mag_sqr_sum = 0.0;
       for( int w_index = 0; w_index < conj_sqr_window_size; ++w_index ) {
          t_conj_sqr_sum = cuCaddf( t_conj_sqr_sum, conj_sqrs[index + w_index] );
       }
+      conj_sqr_means[index] = complex_divide_by_scalar( t_conj_sqr_sum, (float)conj_sqr_window_size );
+   }
+
+}
+
+__device__
+void calc_mag_sqr_means( 
+      float* __restrict__ mag_sqr_means, 
+      const float* __restrict__ mag_sqrs,
+      const int mag_sqr_window_size, 
+      const int num_vals 
+   ) { 
+
+   int global_index = blockDim.x * blockIdx.x + threadIdx.x;
+   int stride = blockDim.x * gridDim.x;
+
+   for (int index = global_index; index < num_vals; index += stride) {
+      float  t_mag_sqr_sum = 0.0;
       for( int w_index = 0; w_index < mag_sqr_window_size; ++w_index ) {
          t_mag_sqr_sum = t_mag_sqr_sum + mag_sqrs[index + w_index];
       }
-      conj_sqr_means[index] = complex_divide_by_scalar( t_conj_sqr_sum, (float)conj_sqr_window_size );
       mag_sqr_means[index] = t_mag_sqr_sum/(float)mag_sqr_window_size;
    }
 
 }
+
 
 __device__
 void normalize( float* __restrict__ norms, const float* __restrict__ conj_sqr_mean_mags, 
@@ -121,12 +135,22 @@ void norm_autocorr_kernel(
    const int mag_sqr_window_size,
    const int num_samples ) {
 
-
    delay16<cufftComplex>( samples_d16, samples, num_samples );
-   auto_correlation( conj_sqrs, samples_d16, samples, num_samples );
-   complex_mag_squared( mag_sqrs, samples, num_samples );
-   moving_averages( conj_sqr_means, mag_sqr_means, conj_sqrs, mag_sqrs, 
-      conj_sqr_window_size, mag_sqr_window_size, num_samples );
-   complex_mags( conj_sqr_mean_mags, conj_sqr_means, num_samples );
-   normalize( norms, conj_sqr_mean_mags, mag_sqr_means, num_samples );
+   //auto_correlation( conj_sqrs, samples_d16, samples, num_samples );
+   //calc_conj_sqr_means( 
+   //   conj_sqr_means, 
+   //   conj_sqrs, 
+   //   conj_sqr_window_size, 
+   //   num_samples );
+   //calc_conj_sqr_mean_mags( conj_sqr_mean_mags, conj_sqr_means, 
+   //   num_samples );
+
+   //complex_mag_squared( mag_sqrs, samples, num_samples );
+   //calc_mag_sqr_means( 
+   //   mag_sqr_means, 
+   //   mag_sqrs,
+   //   mag_sqr_window_size, 
+   //   num_samples );
+   
+   //normalize( norms, conj_sqr_mean_mags, mag_sqr_means, num_samples );
 }

@@ -30,12 +30,13 @@ void NormAutocorrGPU::run() {
       
       if ( debug ) {
          print_cufftComplexes( samples.data(), num_samples, "Samples: ", " ", "\n" ); 
-         print_cufftComplexes( exp_conj_sqrs, num_samples, "Expected Conjugate Squares: ", " ", "\n" );
-         print_cufftComplexes( exp_conj_sqr_means, num_samples, "Expected Conjugate Square Means: ", " ", "\n" );
-         print_vals( exp_conj_sqr_mean_mags, num_samples, "Expected Conjugate Square Mean Mags: ", " ", "\n" ); 
-         print_vals( exp_mag_sqrs, num_samples, "Expected Magnitude Squares: ", " ", "\n" ); 
-         print_vals( exp_mag_sqr_means, num_samples, "Expected Magnitude Square Means: ", " ", "\n" );
-         print_vals( exp_norms, num_samples, "Expected Norms: ", " ", "\n" ); 
+         print_cufftComplexes( exp_samples_d16, num_samples, "Expected Samples D16: ", " ", "\n" ); 
+         //print_cufftComplexes( exp_conj_sqrs, num_samples, "Expected Conjugate Squares: ", " ", "\n" );
+         //print_cufftComplexes( exp_conj_sqr_means, num_samples, "Expected Conjugate Square Means: ", " ", "\n" );
+         //print_vals( exp_conj_sqr_mean_mags, num_samples, "Expected Conjugate Square Mean Mags: ", " ", "\n" ); 
+         //print_vals( exp_mag_sqrs, num_samples, "Expected Magnitude Squares: ", " ", "\n" ); 
+         //print_vals( exp_mag_sqr_means, num_samples, "Expected Magnitude Square Means: ", " ", "\n" );
+         //print_vals( exp_norms, num_samples, "Expected Norms: ", " ", "\n" ); 
       }
       cudaStreamAttachMemAsync( *(stream_ptr.get()), samples.data(), 0, cudaMemAttachGlobal );
 
@@ -61,15 +62,22 @@ void NormAutocorrGPU::run() {
       // num_samples is 0 because the add_kernel modified the data and not a std::vector function
       debug_cout( debug, __func__, "(): num_samples is ", num_samples, "\n" ); 
 
-      print_results( "Norms: " );
+      //print_results( "Norms: " );
       std::cout << "\n"; 
 
       float max_diff = 1e-1;
-      bool all_close = vals_are_close( norms.data(), exp_norms, num_samples, max_diff, debug );
+      bool all_close = cufftComplexes_are_close( samples_d16.data(), 
+         exp_samples_d16, num_samples, max_diff, true);
       if (!all_close) {
          throw std::runtime_error{ std::string{__func__} + 
-            std::string{"(): Mismatch between actual norms from GPU and expected norms."} };
+            std::string{"(): Mismatch between actual samples_d16 from GPU and expected samples_d16."} };
       }
+
+      //bool all_close = vals_are_close( norms.data(), exp_norms, num_samples, max_diff, debug );
+      //if (!all_close) {
+      //   throw std::runtime_error{ std::string{__func__} + 
+      //      std::string{"(): Mismatch between actual norms from GPU and expected norms."} };
+      //}
 
    } catch( std::exception& ex ) {
       std::cout << __func__ << "(): " << ex.what() << "\n"; 
