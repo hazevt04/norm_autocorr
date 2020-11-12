@@ -66,11 +66,50 @@ void NormAutocorrGPU::run() {
       std::cout << "\n"; 
 
       float max_diff = 1e-1;
-      bool all_close = cufftComplexes_are_close( samples_d16.data(), 
-         exp_samples_d16, num_samples, max_diff, true);
+      bool all_close = false;
+      if ( debug ) {
+         all_close = cufftComplexes_are_close( samples_d16.data(), 
+            exp_samples_d16, num_samples, max_diff, debug);
+         if (!all_close) {
+            throw std::runtime_error{ std::string{__func__} + 
+               std::string{"(): Mismatch between actual samples_d16 from GPU and expected samples_d16."} };
+         }
+
+         all_close = cufftComplexes_are_close( conj_sqrs.data(), 
+            exp_conj_sqrs, num_samples, max_diff, debug);
+         if (!all_close) {
+            throw std::runtime_error{ std::string{__func__} + 
+               std::string{"(): Mismatch between actual conj_sqrs from GPU and expected conj_sqrs."} };
+         }
+
+         all_close = cufftComplexes_are_close( conj_sqr_means.data(), 
+            exp_conj_sqr_means, num_samples, max_diff, debug);
+         if (!all_close) {
+            throw std::runtime_error{ std::string{__func__} + 
+               std::string{"(): Mismatch between actual conj_sqr_means from GPU and expected conj_sqr_means."} };
+         }
+      
+         all_close = vals_are_close( conj_sqr_mean_mags.data(), 
+            exp_conj_sqr_mean_mags, num_samples, max_diff, debug);
+         if (!all_close) {
+            throw std::runtime_error{ std::string{__func__} + 
+               std::string{"(): Mismatch between actual conj_sqr_mean_mags from GPU and expected conj_sqr_mean_mags."} };
+         }
+         
+
+         all_close = vals_are_close( mag_sqrs.data(), 
+            exp_mag_sqrs, num_samples, max_diff, debug);
+         if (!all_close) {
+            throw std::runtime_error{ std::string{__func__} + 
+               std::string{"(): Mismatch between actual mag_sqrs from GPU and expected mag_sqrs."} };
+         }
+      }
+
+      all_close = vals_are_close( mag_sqr_means.data(), 
+         exp_mag_sqr_means, num_samples, max_diff, debug);
       if (!all_close) {
          throw std::runtime_error{ std::string{__func__} + 
-            std::string{"(): Mismatch between actual samples_d16 from GPU and expected samples_d16."} };
+            std::string{"(): Mismatch between actual mag_sqr_means from GPU and expected mag_sqr_means."} };
       }
 
       //bool all_close = vals_are_close( norms.data(), exp_norms, num_samples, max_diff, debug );

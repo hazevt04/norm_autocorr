@@ -18,12 +18,12 @@
 class NormAutocorrGPU {
 private:
    managed_vector_host<cufftComplex> samples;
-   device_vector<cufftComplex> samples_d16;
-   device_vector<cufftComplex> conj_sqrs;
-   device_vector<cufftComplex> conj_sqr_means;
-   device_vector<float> conj_sqr_mean_mags;
-   device_vector<float> mag_sqrs;
-   device_vector<float> mag_sqr_means;
+   managed_vector_global<cufftComplex> samples_d16;
+   managed_vector_global<cufftComplex> conj_sqrs;
+   managed_vector_global<cufftComplex> conj_sqr_means;
+   managed_vector_global<float> conj_sqr_mean_mags;
+   managed_vector_global<float> mag_sqrs;
+   managed_vector_global<float> mag_sqr_means;
    managed_vector_global<float> norms;
 
    cufftComplex* exp_samples_d16;

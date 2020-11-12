@@ -37,31 +37,6 @@ void auto_correlation( cufftComplex* __restrict__ conj_sqrs, const cufftComplex*
 
 
 __device__
-void complex_mag_squared( float* __restrict__ mag_sqrs, const cufftComplex* __restrict__ samples, const int num_vals ) {
-
-   int global_index = blockDim.x * blockIdx.x + threadIdx.x;
-   int stride = blockDim.x * gridDim.x;
-
-   for (int index = global_index; index < num_vals; index += stride) {
-      float temp = cuCabsf( samples[index] );
-      mag_sqrs[index] = temp * temp;
-   }
-}
-
-
-__device__
-void complex_mags( float* __restrict__ mags, const cufftComplex* __restrict__ samples, const int num_vals ) {
-
-   int global_index = blockDim.x * blockIdx.x + threadIdx.x;
-   int stride = blockDim.x * gridDim.x;
-
-   for (int index = global_index; index < num_vals; index += stride) {
-      mags[index] = cuCabsf( samples[index] );
-   }
-}
-
-
-__device__
 void calc_conj_sqr_means( 
       cufftComplex* __restrict__ conj_sqr_means, 
       const cufftComplex* __restrict__ conj_sqrs, 
@@ -81,6 +56,31 @@ void calc_conj_sqr_means(
    }
 
 }
+
+__device__
+void calc_conj_sqr_mean_mags( float* __restrict__ conj_sqr_mean_mags, const cufftComplex* __restrict__ conj_sqr_means, const int num_vals ) {
+
+   int global_index = blockDim.x * blockIdx.x + threadIdx.x;
+   int stride = blockDim.x * gridDim.x;
+
+   for (int index = global_index; index < num_vals; index += stride) {
+      conj_sqr_mean_mags[index] = cuCabsf( conj_sqr_means[index] );
+   }
+}
+
+
+__device__
+void calc_mag_sqrs( float* __restrict__ mag_sqrs, const cufftComplex* __restrict__ samples, const int num_vals ) {
+
+   int global_index = blockDim.x * blockIdx.x + threadIdx.x;
+   int stride = blockDim.x * gridDim.x;
+
+   for (int index = global_index; index < num_vals; index += stride) {
+      float temp = cuCabsf( samples[index] );
+      mag_sqrs[index] = temp * temp;
+   }
+}
+
 
 __device__
 void calc_mag_sqr_means( 
@@ -135,22 +135,28 @@ void norm_autocorr_kernel(
    const int mag_sqr_window_size,
    const int num_samples ) {
 
-   delay16<cufftComplex>( samples_d16, samples, num_samples );
-   //auto_correlation( conj_sqrs, samples_d16, samples, num_samples );
-   //calc_conj_sqr_means( 
-   //   conj_sqr_means, 
-   //   conj_sqrs, 
-   //   conj_sqr_window_size, 
-   //   num_samples );
-   //calc_conj_sqr_mean_mags( conj_sqr_mean_mags, conj_sqr_means, 
-   //   num_samples );
+   int num_conj_sums = num_samples - conj_sqr_window_size;
+   int num_mag_sqr_sums = num_samples - mag_sqr_window_size;
 
-   //complex_mag_squared( mag_sqrs, samples, num_samples );
-   //calc_mag_sqr_means( 
-   //   mag_sqr_means, 
-   //   mag_sqrs,
-   //   mag_sqr_window_size, 
-   //   num_samples );
+   delay16<cufftComplex>( samples_d16, samples, num_samples );
+   auto_correlation( conj_sqrs, samples_d16, samples, num_samples );
+   
+   calc_conj_sqr_means( 
+      conj_sqr_means, 
+      conj_sqrs, 
+      conj_sqr_window_size, 
+      num_conj_sums );
+
+   calc_conj_sqr_mean_mags( conj_sqr_mean_mags, conj_sqr_means, 
+      num_samples );
+
+   calc_mag_sqrs( mag_sqrs, samples, num_samples );
+
+   calc_mag_sqr_means( 
+      mag_sqr_means, 
+      mag_sqrs,
+      mag_sqr_window_size, 
+      num_mag_sqr_sums );
    
    //normalize( norms, conj_sqr_mean_mags, mag_sqr_means, num_samples );
 }

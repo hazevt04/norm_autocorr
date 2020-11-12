@@ -13,8 +13,6 @@ void gen_cufftComplexes( cufftComplex* complexes, const int num_complexes, const
 bool cufftComplexes_are_close( const cufftComplex* lvals, const cufftComplex* rvals, 
     const int num_vals, const float max_diff, const bool debug ) {
 
-    dout << __func__ << "(): num vals is " << num_vals << "\n";
-
     for( size_t index = 0; index < num_vals; ++index ) {
       float abs_diff_real = abs( lvals[index].x - rvals[index].x );
       float abs_diff_imag = abs( lvals[index].y - rvals[index].y );
