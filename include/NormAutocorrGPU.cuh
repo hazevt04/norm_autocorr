@@ -112,6 +112,14 @@ public:
          exp_mag_sqr_means = new float[num_samples];
          exp_norms = new float[num_samples];
 
+         std::fill( samples_d16.begin(), samples_d16.end(), make_cuFloatComplex(0.f,0.f) );
+         std::fill( conj_sqrs.begin(), conj_sqrs.end(), make_cuFloatComplex(0.f,0.f) );
+         std::fill( conj_sqr_means.begin(), conj_sqr_means.end(), make_cuFloatComplex(0.f,0.f) );
+         std::fill( conj_sqr_mean_mags.begin(), conj_sqr_mean_mags.end(), 0 );
+         std::fill( mag_sqrs.begin(), mag_sqrs.end(), 0 );
+         std::fill( mag_sqr_means.begin(), mag_sqr_means.end(), 0 );
+         std::fill( norms.begin(), norms.end(), 0 );
+
          for( int index = 0; index < num_samples; ++index ) {
             exp_samples_d16[index] = make_cuFloatComplex( 0.f, 0.f );
             exp_conj_sqrs[index] = make_cuFloatComplex( 0.f, 0.f );
@@ -159,6 +167,7 @@ public:
       mag_sqrs.clear();
       mag_sqr_means.clear();
       norms.clear();
+
       if ( stream_ptr ) cudaStreamDestroy( *(stream_ptr.get()) );
       dout << "dtor done\n";
    }
