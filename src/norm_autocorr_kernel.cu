@@ -98,7 +98,11 @@ void normalize( float* __restrict__ norms, const float* __restrict__ conj_sqr_me
    int stride = blockDim.x * gridDim.x;
 
    for (int index = global_index; index < num_samples; index += stride) {
-      norms[index] =  conj_sqr_mean_mags[index]/mag_sqr_means[index];  
+      if ( mag_sqr_means[index] > 0.f ) {
+         norms[index] =  conj_sqr_mean_mags[index]/mag_sqr_means[index];
+      } else {
+         norms[index] = 0.f;
+      }
    }
 
 }

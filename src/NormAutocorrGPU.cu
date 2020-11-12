@@ -28,48 +28,48 @@ void NormAutocorrGPU::run() {
       
       debug_cout( debug, __func__, "(): num_samples is ", num_samples, "\n" ); 
       
-      print_cufftComplexes( samples.data(), num_samples, "Samples: ", " ", "\n" ); 
-      
-      print_cufftComplexes( exp_conj_sqrs, num_samples, "Expected Conjugate Squares: ", " ", "\n" );
-      print_cufftComplexes( exp_conj_sqr_means, num_samples, "Expected Conjugate Square Means: ", " ", "\n" );
-      print_vals( exp_conj_sqr_mean_mags, num_samples, "Expected Conjugate Square Mean Mags: ", " ", "\n" ); 
-      print_vals( exp_mag_sqrs, num_samples, "Expected Magnitude Squares: ", " ", "\n" ); 
-      print_vals( exp_mag_sqr_means, num_samples, "Expected Magnitude Square Means: ", " ", "\n" );
-      print_vals( exp_norms, num_samples, "Expected Norms: ", " ", "\n" ); 
+      if ( debug ) {
+         print_cufftComplexes( samples.data(), num_samples, "Samples: ", " ", "\n" ); 
+         print_cufftComplexes( exp_conj_sqrs, num_samples, "Expected Conjugate Squares: ", " ", "\n" );
+         print_cufftComplexes( exp_conj_sqr_means, num_samples, "Expected Conjugate Square Means: ", " ", "\n" );
+         print_vals( exp_conj_sqr_mean_mags, num_samples, "Expected Conjugate Square Mean Mags: ", " ", "\n" ); 
+         print_vals( exp_mag_sqrs, num_samples, "Expected Magnitude Squares: ", " ", "\n" ); 
+         print_vals( exp_mag_sqr_means, num_samples, "Expected Magnitude Square Means: ", " ", "\n" );
+         print_vals( exp_norms, num_samples, "Expected Norms: ", " ", "\n" ); 
+      }
+      cudaStreamAttachMemAsync( *(stream_ptr.get()), samples.data(), 0, cudaMemAttachGlobal );
 
-      //cudaStreamAttachMemAsync( *(stream_ptr.get()), samples.data(), 0, cudaMemAttachGlobal );
-
-      //norm_autocorr_kernel<<<num_blocks, threads_per_block, num_shared_bytes, *(stream_ptr.get())>>>( 
-      //   norms.data(), 
-      //   mag_sqr_means.data(), 
-      //   mag_sqrs.data(), 
-      //   conj_sqr_mean_mags.data(), 
-      //   conj_sqr_means.data(), 
-      //   conj_sqrs.data(), 
-      //   samples_d16.data(), 
-      //   samples.data(),
-      //   conj_sqrs_window_size,
-      //   mag_sqrs_window_size,
-      //   num_samples 
-      //);
+      norm_autocorr_kernel<<<num_blocks, threads_per_block, num_shared_bytes, *(stream_ptr.get())>>>( 
+         norms.data(), 
+         mag_sqr_means.data(), 
+         mag_sqrs.data(), 
+         conj_sqr_mean_mags.data(), 
+         conj_sqr_means.data(), 
+         conj_sqrs.data(), 
+         samples_d16.data(), 
+         samples.data(),
+         conj_sqrs_window_size,
+         mag_sqrs_window_size,
+         num_samples 
+      );
 
       //// Prefetch fspecs from the GPU
-      //cudaStreamAttachMemAsync( *(stream_ptr.get()), norms.data(), 0, cudaMemAttachHost );   
+      cudaStreamAttachMemAsync( *(stream_ptr.get()), norms.data(), 0, cudaMemAttachHost );   
       
-      //try_cuda_func_throw( cerror, cudaStreamSynchronize( *(stream_ptr.get())  ) );
+      try_cuda_func_throw( cerror, cudaStreamSynchronize( *(stream_ptr.get())  ) );
       
-      //// num_samples is 0 because the add_kernel modified the data and not a std::vector function
-      //debug_cout( debug, __func__, "(): num_samples is ", num_samples, "\n" ); 
+      // num_samples is 0 because the add_kernel modified the data and not a std::vector function
+      debug_cout( debug, __func__, "(): num_samples is ", num_samples, "\n" ); 
 
-      //print_results( "Norms: " );
-      //std::cout << "\n"; 
+      print_results( "Norms: " );
+      std::cout << "\n"; 
 
-      //float max_diff = 1e-1;
-      //bool all_close = vals_are_close( norms.data(), exp_norms, num_samples, max_diff, debug );
-      //if (!all_close) {
-      //   throw std::runtime_error{ std::string{__func__} + 
-      //      std::string{"(): Mismatch between actual norms from GPU and expected norms."} };
-      //}
+      float max_diff = 1e-1;
+      bool all_close = vals_are_close( norms.data(), exp_norms, num_samples, max_diff, debug );
+      if (!all_close) {
+         throw std::runtime_error{ std::string{__func__} + 
+            std::string{"(): Mismatch between actual norms from GPU and expected norms."} };
+      }
 
    } catch( std::exception& ex ) {
       std::cout << __func__ << "(): " << ex.what() << "\n"; 
