@@ -143,7 +143,10 @@ public:
 
    void gen_data( int seed = 0 ) {
       samples.resize(num_samples);
-      gen_cufftComplexes( samples.data(), num_samples, -50.0, 50.0 );
+      //gen_cufftComplexes( samples.data(), num_samples, -50.0, 50.0 );
+      for( size_t index = 0; index < samples.size(); ++index ) {
+         samples[index] = make_cuFloatComplex( (float)(index+50), (float)(index+50) );
+      } 
 
       if (debug) {
          print_cufftComplexes( samples.data(), num_samples, "Samples: ",  " ",  "\n" ); 

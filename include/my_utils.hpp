@@ -292,13 +292,14 @@ bool complex_vals_are_close( const complex_vec<T>& lvals, const complex_vec<T>& 
 
 
 template<typename T>
-std::pair<bool,int> complex_mismatch_where( const complex_vec<T>& lvals, const complex_vec<T>& rvals, const T& max_diff ) {
+std::pair<bool,int> complex_mismatch_where( const complex_vec<T>& lvals, const complex_vec<T>& rvals, const T& max_diff, const std::string prefix="", const bool debug=false ) {
 
    for( size_t index = 0; index != lvals.size(); ++index ) {
       T abs_diff_real = abs( lvals[index].real() - rvals[index].real() );
       T abs_diff_imag = abs( lvals[index].imag() - rvals[index].imag() );
 
       if ( ( abs_diff_real > max_diff ) || ( abs_diff_imag > max_diff ) ) {
+         std::cout << prefix;
          std::cout << "Mismatch:\n";
          std::cout << "Lval[" << index << "] = {" << lvals[index] << "}\n";
          std::cout << "Rval[" << index << "] = {" << rvals[index] << "}\n";
@@ -312,12 +313,13 @@ std::pair<bool,int> complex_mismatch_where( const complex_vec<T>& lvals, const c
 
 
 template<typename T>
-bool vals_are_close( const std::vector<T>& lvals, const std::vector<T>& rvals, const T& max_diff ) {
+bool vals_are_close( const std::vector<T>& lvals, const std::vector<T>& rvals, const T& max_diff, const std::string& prefix="", const bool debug=false ) {
 
    for( size_t index = 0; index != lvals.size(); ++index ) {
       T abs_diff = abs( lvals[index] - rvals[index] );
 
       if ( ( abs_diff > max_diff ) ) {
+         std::cout << prefix;
          std::cout << "Mismatch:\n";
          std::cout << "Lval[" << index << "] = " << std::setprecision(9) << lvals[index] << "\n";
          std::cout << "Rval[" << index << "] = " << std::setprecision(9) << rvals[index] << "\n";
@@ -331,12 +333,13 @@ bool vals_are_close( const std::vector<T>& lvals, const std::vector<T>& rvals, c
 
 
 template<typename T>
-bool vals_are_close( const T* lvals, const T* rvals, const int num_vals, const T& max_diff, const bool debug ) {
+bool vals_are_close( const T* lvals, const T* rvals, const int num_vals, const T& max_diff, const std::string& prefix="", const bool debug=false ) {
 
    for( int index = 0; index < num_vals; ++index ) {
       T abs_diff = abs( lvals[index] - rvals[index] );
 
       if ( ( abs_diff > max_diff ) ) {
+         std::cout << prefix;
          std::cout << "Mismatch:\n";
          std::cout << "Lval[" << index << "] = " << std::setprecision(9) << lvals[index] << "\n";
          std::cout << "Rval[" << index << "] = " << std::setprecision(9) << rvals[index] << "\n";

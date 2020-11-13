@@ -28,7 +28,7 @@ operator<<(std::basic_ostream<_CharT, _Traits>& __os, const cufftComplex& __c) {
 void gen_cufftComplexes( cufftComplex* complexes, const int num_complexes, const float lower, const float upper ); 
 
 bool cufftComplexes_are_close( const cufftComplex* lvals, const cufftComplex* rvals, 
-    const int num_vals, const float max_diff, const bool debug );
+    const int num_vals, const float max_diff, const std::string& prefix, const bool debug );
 
 void print_cufftComplexes(const cufftComplex* vals,
    const int num_vals,

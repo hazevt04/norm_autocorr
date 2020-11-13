@@ -11,7 +11,7 @@ void gen_cufftComplexes( cufftComplex* complexes, const int num_complexes, const
 }
 
 bool cufftComplexes_are_close( const cufftComplex* lvals, const cufftComplex* rvals, 
-    const int num_vals, const float max_diff, const bool debug ) {
+    const int num_vals, const float max_diff, const std::string& prefix, const bool debug ) {
 
     for( size_t index = 0; index < num_vals; ++index ) {
       float abs_diff_real = abs( lvals[index].x - rvals[index].x );
