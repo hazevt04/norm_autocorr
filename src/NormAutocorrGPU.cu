@@ -16,28 +16,22 @@ void NormAutocorrGPU::run() {
    try {
       cudaError_t cerror = cudaSuccess;
       int num_shared_bytes = 0;
-      int threads_per_block = 1024;
-      int num_blocks = (num_samples + threads_per_block - 1) / threads_per_block;
+      int num_blocks = (adjusted_num_samples + threads_per_block - 1) / threads_per_block;
 
       debug_cout( debug, __func__, "(): num_samples is ", num_samples, "\n" ); 
       debug_cout( debug, __func__, "(): threads_per_block is ", threads_per_block, "\n" ); 
+      debug_cout( debug, __func__, "(): adjusted_num_samples is ", adjusted_num_samples, "\n" ); 
       debug_cout( debug, __func__, "(): num_blocks is ", num_blocks, "\n" ); 
 
-      gen_data();
-      gen_expected_norms();
-      
-      debug_cout( debug, __func__, "(): num_samples is ", num_samples, "\n" ); 
-      
-      //if ( debug ) {
-         //print_cufftComplexes( samples.data(), num_samples, "Samples: ", " ", "\n" ); 
-         //print_cufftComplexes( exp_samples_d16, num_samples, "Expected Samples D16: ", " ", "\n" ); 
-         //print_cufftComplexes( exp_conj_sqrs, num_samples, "Expected Conjugate Squares: ", " ", "\n" );
-         //print_cufftComplexes( exp_conj_sqr_means, num_samples, "Expected Conjugate Square Means: ", " ", "\n" );
-         //print_vals( exp_conj_sqr_mean_mags, num_samples, "Expected Conjugate Square Mean Mags: ", " ", "\n" ); 
-         //print_vals( exp_mag_sqrs, num_samples, "Expected Magnitude Squares: ", " ", "\n" ); 
-         //print_vals( exp_mag_sqr_means, num_samples, "Expected Magnitude Square Means: ", " ", "\n" );
-         //print_vals( exp_norms, num_samples, "Expected Norms: ", " ", "\n" ); 
-      //}
+      if ( debug ) {
+         print_cufftComplexes( exp_samples_d16, num_samples, "Expected Samples D16: ", " ", "\n" ); 
+         print_cufftComplexes( exp_conj_sqrs, num_samples, "Expected Conjugate Squares: ", " ", "\n" );
+         print_cufftComplexes( exp_conj_sqr_means, num_samples, "Expected Conjugate Square Means: ", " ", "\n" );
+         print_vals( exp_conj_sqr_mean_mags, num_samples, "Expected Conjugate Square Mean Mags: ", " ", "\n" ); 
+         print_vals( exp_mag_sqrs, num_samples, "Expected Magnitude Squares: ", " ", "\n" ); 
+         print_vals( exp_mag_sqr_means, num_samples, "Expected Magnitude Square Means: ", " ", "\n" );
+         print_vals( exp_norms, num_samples, "Expected Norms: ", " ", "\n" ); 
+      }
       cudaStreamAttachMemAsync( *(stream_ptr.get()), samples.data(), 0, cudaMemAttachGlobal );
 
       norm_autocorr_kernel<<<num_blocks, threads_per_block, num_shared_bytes, *(stream_ptr.get())>>>( 
@@ -57,7 +51,8 @@ void NormAutocorrGPU::run() {
       //// Prefetch fspecs from the GPU
       cudaStreamAttachMemAsync( *(stream_ptr.get()), norms.data(), 0, cudaMemAttachHost );   
       
-      try_cuda_func_throw( cerror, cudaStreamSynchronize( *(stream_ptr.get())  ) );
+      //try_cuda_func_throw( cerror, cudaStreamSynchronize( *(stream_ptr.get())  ) );
+      try_cuda_func_throw( cerror, cudaDeviceSynchronize() );
       
       // num_samples is 0 because the add_kernel modified the data and not a std::vector function
       debug_cout( debug, __func__, "(): num_samples is ", num_samples, "\n" ); 
@@ -65,8 +60,9 @@ void NormAutocorrGPU::run() {
       //print_results( "Norms: " );
       std::cout << "\n"; 
 
-      float max_diff = 1e-1;
+      float max_diff = 1;
       bool all_close = false;
+
       if ( debug ) {
          std::cout << __func__ << "(): samples D16 Check:\n"; 
          all_close = cufftComplexes_are_close( samples_d16.data(), 
@@ -180,14 +176,17 @@ void NormAutocorrGPU::calc_auto_corrs() {
 void NormAutocorrGPU::calc_exp_conj_sqr_means() {
 
    // exp_conj_sqr_means must already be all zeros
+   debug_printf( debug, "%s(): exp_conj_sqr_means[0] = { %f, %f }\n", __func__, exp_conj_sqr_means[0].x, exp_conj_sqr_means[0].y ); 
    for( int index = 0; index < conj_sqrs_window_size; ++index ) {
       exp_conj_sqr_means[0] = cuCaddf( exp_conj_sqr_means[0], exp_conj_sqrs[index] );
    }
+   debug_printf( debug, "%s(): after initial sum: exp_conj_sqr_means[0] = { %f, %f }\n", __func__, exp_conj_sqr_means[0].x, exp_conj_sqr_means[0].y ); 
       
    int num_sums = num_samples - conj_sqrs_window_size;
+   debug_printf( debug, "%s(): num_sums is %d\n", __func__, num_sums ); 
    for( int index = 1; index < num_sums; ++index ) {
-      exp_conj_sqr_means[index] = cuCsubf( cuCaddf( exp_conj_sqr_means[index-1], exp_conj_sqrs[index + conj_sqrs_window_size-1] ), 
-         exp_conj_sqrs[index-1] );
+      cufftComplex temp = cuCsubf( exp_conj_sqr_means[index-1], exp_conj_sqrs[index-1] );
+      exp_conj_sqr_means[index] = cuCaddf( temp, exp_conj_sqrs[index + conj_sqrs_window_size-1] );
    } 
 
    for( int index = 0; index < num_samples; ++index ) {
@@ -198,14 +197,16 @@ void NormAutocorrGPU::calc_exp_conj_sqr_means() {
 
 void NormAutocorrGPU::calc_exp_mag_sqr_means() {
 
+   debug_printf( debug, "%s(): exp_mag_sqr_means[0] = %f\n", __func__, exp_mag_sqr_means[0] ); 
    // exp_mag_sqr_means must already be all zeros
    for( int index = 0; index < mag_sqrs_window_size; ++index ) {
       exp_mag_sqr_means[0] = exp_mag_sqr_means[0] + exp_mag_sqrs[index];
    }
+   debug_printf( debug, "%s(): After initial sum: exp_mag_sqr_means[0] = %f\n", __func__, exp_mag_sqr_means[0] ); 
       
    int num_sums = num_samples - mag_sqrs_window_size;
    for( int index = 1; index < num_sums; ++index ) {
-      exp_mag_sqr_means[index] = exp_mag_sqr_means[index-1] + exp_mag_sqrs[index + mag_sqrs_window_size-1] - exp_mag_sqrs[index-1];
+      exp_mag_sqr_means[index] = exp_mag_sqr_means[index-1] - exp_mag_sqrs[index-1] + exp_mag_sqrs[index + mag_sqrs_window_size-1];
    } 
 
    for( int index = 0; index  < num_samples; ++index ) {

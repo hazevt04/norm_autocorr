@@ -1,4 +1,6 @@
 
+#include <stdio.h>
+
 #include "my_cufft_utils.hpp"
 
 #include "norm_autocorr_kernel.cuh"
@@ -49,6 +51,7 @@ void calc_conj_sqr_means(
 
    for (int index = global_index; index < num_vals; index += stride) {
       cufftComplex  t_conj_sqr_sum = make_cuFloatComplex(0.0,0.0);
+
       for( int w_index = 0; w_index < conj_sqr_window_size; ++w_index ) {
          t_conj_sqr_sum = cuCaddf( t_conj_sqr_sum, conj_sqrs[index + w_index] );
       }
@@ -135,28 +138,34 @@ void norm_autocorr_kernel(
    const int mag_sqr_window_size,
    const int num_samples ) {
 
-   int num_conj_sums = num_samples - conj_sqr_window_size;
+   int num_conj_sqr_sums = num_samples - conj_sqr_window_size;
    int num_mag_sqr_sums = num_samples - mag_sqr_window_size;
 
    delay16<cufftComplex>( samples_d16, samples, num_samples );
+   __syncthreads();
    auto_correlation( conj_sqrs, samples_d16, samples, num_samples );
+   __syncthreads();
    
    calc_conj_sqr_means( 
       conj_sqr_means, 
       conj_sqrs, 
       conj_sqr_window_size, 
-      num_conj_sums );
+      num_conj_sqr_sums );
+   __syncthreads();
 
    calc_conj_sqr_mean_mags( conj_sqr_mean_mags, conj_sqr_means, 
-      num_samples );
+      num_conj_sqr_sums );
+   __syncthreads();
 
    calc_mag_sqrs( mag_sqrs, samples, num_samples );
+   __syncthreads();
 
    calc_mag_sqr_means( 
       mag_sqr_means, 
       mag_sqrs,
       mag_sqr_window_size, 
       num_mag_sqr_sums );
+   __syncthreads();
    
-   //normalize( norms, conj_sqr_mean_mags, mag_sqr_means, num_samples );
+   normalize( norms, conj_sqr_mean_mags, mag_sqr_means, num_samples );
 }

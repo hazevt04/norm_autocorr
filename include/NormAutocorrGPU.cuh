@@ -15,6 +15,11 @@
 
 #include "VariadicToOutputStream.hpp"
 
+constexpr float PI = 3.1415926535897238463f;
+constexpr float FREQ = 1000.f;
+constexpr float AMPLITUDE = 50.f;
+constexpr int threads_per_block = 1024;
+
 class NormAutocorrGPU {
 private:
    managed_vector_host<cufftComplex> samples;
@@ -34,10 +39,11 @@ private:
    float* exp_mag_sqr_means;
    float* exp_norms;
 
-   int num_samples;
-   int conj_sqrs_window_size;
-   int mag_sqrs_window_size;
-   int max_num_iters;
+   int num_samples = 4000;
+   int adjusted_num_samples = 4096;
+   int conj_sqrs_window_size = 48;
+   int mag_sqrs_window_size = 64;
+   int max_num_iters = 4000;
    bool debug;
 
    std::unique_ptr<cudaStream_t> stream_ptr;
@@ -73,13 +79,7 @@ private:
    void calc_exp_mag_sqr_means();
 
 public:
-   NormAutocorrGPU():
-      num_samples(4000),
-      conj_sqrs_window_size(48),
-      mag_sqrs_window_size(64),
-      max_num_iters(4000),
-      debug(false) {}
-   
+   NormAutocorrGPU(){}
    
    NormAutocorrGPU( 
       int new_num_samples, 
@@ -95,14 +95,21 @@ public:
    
       try {
          debug_cout( debug, __func__, "(): num_samples is ", num_samples, "\n" );
-         samples.reserve( num_samples );
-         samples_d16.reserve( num_samples );
-         conj_sqrs.reserve( num_samples );
-         conj_sqr_means.reserve( num_samples );
-         conj_sqr_mean_mags.reserve( num_samples );
-         mag_sqrs.reserve( num_samples );
-         mag_sqr_means.reserve( num_samples );
-         norms.reserve( num_samples );
+
+         int resize_factor = (num_samples + (threads_per_block-1))/threads_per_block;
+
+         adjusted_num_samples = threads_per_block * resize_factor;
+         debug_printf( debug, "%s(): adjusted number of samples for allocation is %d\n", 
+            __func__, adjusted_num_samples ); 
+
+         samples.reserve( adjusted_num_samples );
+         samples_d16.reserve( adjusted_num_samples );
+         conj_sqrs.reserve( adjusted_num_samples );
+         conj_sqr_means.reserve( adjusted_num_samples );
+         conj_sqr_mean_mags.reserve( adjusted_num_samples );
+         mag_sqrs.reserve( adjusted_num_samples );
+         mag_sqr_means.reserve( adjusted_num_samples );
+         norms.reserve( adjusted_num_samples );
 
          exp_samples_d16 = new cufftComplex[num_samples];
          exp_conj_sqrs = new cufftComplex[num_samples];
@@ -112,6 +119,20 @@ public:
          exp_mag_sqr_means = new float[num_samples];
          exp_norms = new float[num_samples];
 
+         for( int index = 0; index < num_samples; ++index ) {
+
+            exp_samples_d16[index] = make_cuFloatComplex(0.f,0.f);
+            exp_conj_sqrs[index] = 
+            exp_conj_sqr_means[index] = make_cuFloatComplex(0.f,0.f);
+            exp_mag_sqr_means[index] = 0.f;
+         } 
+
+         samples.resize(adjusted_num_samples);
+         
+         //std::fill( samples.begin(), samples.end(), make_cuFloatComplex(0.f,0.f) );
+         initialize_samples();
+         gen_expected_norms();
+
          std::fill( samples_d16.begin(), samples_d16.end(), make_cuFloatComplex(0.f,0.f) );
          std::fill( conj_sqrs.begin(), conj_sqrs.end(), make_cuFloatComplex(0.f,0.f) );
          std::fill( conj_sqr_means.begin(), conj_sqr_means.end(), make_cuFloatComplex(0.f,0.f) );
@@ -119,16 +140,6 @@ public:
          std::fill( mag_sqrs.begin(), mag_sqrs.end(), 0 );
          std::fill( mag_sqr_means.begin(), mag_sqr_means.end(), 0 );
          std::fill( norms.begin(), norms.end(), 0 );
-
-         for( int index = 0; index < num_samples; ++index ) {
-            exp_samples_d16[index] = make_cuFloatComplex( 0.f, 0.f );
-            exp_conj_sqrs[index] = make_cuFloatComplex( 0.f, 0.f );
-            exp_conj_sqr_means[index] = make_cuFloatComplex( 0.f, 0.f );
-            exp_conj_sqr_mean_mags[index] = 0.f;
-            exp_mag_sqrs[index] = 0.f;
-            exp_mag_sqr_means[index] = 0.f;
-            exp_norms[index] = 0.f;
-         } 
 
          stream_ptr = my_make_unique<cudaStream_t>();
          try_cudaStreamCreate( stream_ptr.get() );
@@ -141,12 +152,13 @@ public:
       }
    }
 
-   void gen_data( int seed = 0 ) {
-      samples.resize(num_samples);
-      //gen_cufftComplexes( samples.data(), num_samples, -50.0, 50.0 );
-      for( size_t index = 0; index < samples.size(); ++index ) {
-         samples[index] = make_cuFloatComplex( (float)(index+50), (float)(index+50) );
-      } 
+   void initialize_samples( int seed = 0 ) {
+      gen_cufftComplexes( samples.data(), num_samples, -50.0, 50.0 );
+      /*for( size_t index = 0; index < num_samples; ++index ) {*/
+      /*   float t_val_real = AMPLITUDE*sin(2*PI*FREQ*index);*/
+      /*   float t_val_imag = AMPLITUDE*sin(2*PI*FREQ*index);*/
+      /*   samples[index] = make_cuFloatComplex( t_val_real, t_val_imag );*/
+      /*} */
 
       if (debug) {
          print_cufftComplexes( samples.data(), num_samples, "Samples: ",  " ",  "\n" ); 

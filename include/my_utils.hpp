@@ -308,6 +308,7 @@ std::pair<bool,int> complex_mismatch_where( const complex_vec<T>& lvals, const c
          return std::pair<bool,int>{false,index};
       }
    }
+   dout << __func__ << "(): " << prefix << " All matched.\n";
    return std::pair<bool,int>{true,-1};
 }
 
@@ -328,6 +329,7 @@ bool vals_are_close( const std::vector<T>& lvals, const std::vector<T>& rvals, c
          return false;
       }
    }
+   dout << __func__ << "(): " << prefix << " All matched.\n";
    return true;
 }
 
@@ -335,11 +337,14 @@ bool vals_are_close( const std::vector<T>& lvals, const std::vector<T>& rvals, c
 template<typename T>
 bool vals_are_close( const T* lvals, const T* rvals, const int num_vals, const T& max_diff, const std::string& prefix="", const bool debug=false ) {
 
+   dout << __func__ << "(): " << prefix << " num_vals is " << num_vals << "\n";
+   if ( lvals == nullptr ) std::cout << __func__ << "(): " << prefix << "lvals is NULL!\n"; 
+   if ( rvals == nullptr ) std::cout << __func__ << "(): " << prefix << "rvals is NULL!\n"; 
    for( int index = 0; index < num_vals; ++index ) {
       T abs_diff = abs( lvals[index] - rvals[index] );
 
       if ( ( abs_diff > max_diff ) ) {
-         std::cout << prefix;
+         std::cout << __func__ << "(): " << prefix;
          std::cout << "Mismatch:\n";
          std::cout << "Lval[" << index << "] = " << std::setprecision(9) << lvals[index] << "\n";
          std::cout << "Rval[" << index << "] = " << std::setprecision(9) << rvals[index] << "\n";
@@ -348,6 +353,7 @@ bool vals_are_close( const T* lvals, const T* rvals, const int num_vals, const T
          return false;
       }
    }
+   dout << __func__ << "(): " << prefix << " All matched.\n";
    return true;
 }
 
