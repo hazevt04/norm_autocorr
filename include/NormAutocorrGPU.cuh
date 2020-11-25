@@ -3,6 +3,7 @@
 #include <exception>
 
 #include "my_cuda_utils.hpp"
+#include "my_file_io_funcs.hpp"
 
 #include <algorithm>
 #include <numeric>
@@ -129,8 +130,9 @@ public:
 
          samples.resize(adjusted_num_samples);
          
-         //std::fill( samples.begin(), samples.end(), make_cuFloatComplex(0.f,0.f) );
-         initialize_samples();
+         //initialize_samples();
+         read_binary_file2<cufftComplex, managed_allocator_host<cufftComplex>>( samples, "/home/glenn/Sandbox/CUDA/norm_autocorr/input_samples.5.9GHz.10MHzBW.560u.LS.dat", num_samples, debug );
+
          gen_expected_norms();
 
          std::fill( samples_d16.begin(), samples_d16.end(), make_cuFloatComplex(0.f,0.f) );
