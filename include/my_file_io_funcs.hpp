@@ -47,6 +47,18 @@ void write_binary_file_inner(
 
 template<typename T>
 void write_binary_file(
+   std::vector<T>& vals, const char* filename, const int num_vals, const bool debug = false) {
+      
+   try {
+      write_binary_file_inner(vals.data(), filename, num_vals, debug);
+   } catch (std::exception& ex) {
+      throw std::runtime_error{std::string{__func__} + std::string{"(): "} + ex.what()};
+   }
+   
+}
+
+template<typename T>
+void write_binary_file(
    std::vector<T>& vals, const char* filename, const bool debug = false) {
       
    try {
@@ -56,7 +68,6 @@ void write_binary_file(
    }
    
 }
-
 
 template<typename T>
 void write_binary_file(
@@ -114,27 +125,27 @@ void read_binary_file(
    }
 }
 
-//template<typename T>
-//void read_binary_file(
-//   std::vector<T>& vals, const char* filename, const bool debug = false) {
+template<typename T>
+void read_binary_file(
+  std::vector<T>& vals, const char* filename, const int num_vals, const bool debug = false) {
 
-//   try {
-//      read_binary_file_inner<T>( vals.data(), filename, (int)vals.size(), debug );
-//   } catch (std::exception& ex) {
-//      throw std::runtime_error{std::string{__func__} + std::string{"(): "} + ex.what()};
-//   }
-//}
+  try {
+     read_binary_file_inner<T>( vals.data(), filename, num_vals, debug );
+  } catch (std::exception& ex) {
+     throw std::runtime_error{std::string{__func__} + std::string{"(): "} + ex.what()};
+  }
+}
 
-template<typename T, class Allocator = std::allocator<T>>
-void read_binary_file2(
-   std::vector<T, Allocator>& vals, const char* filename, const int num_vals_to_read, const bool debug = false) {
+/* template<typename T, class Allocator = std::allocator<T>>
+void read_binary_file(
+   std::vector<T, Allocator>& vals, const char* filename, const int num_vals, const bool debug = false) {
 
    try {
-      read_binary_file_inner<T>( vals.data(), filename, num_vals_to_read, debug );
+      read_binary_file_inner<T>( vals.data(), filename, num_vals, debug );
    } catch (std::exception& ex) {
       throw std::runtime_error{std::string{__func__} + std::string{"(): "} + ex.what()};
    }
-}
+} */
 
 template<typename T>
 void read_binary_file(

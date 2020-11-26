@@ -1,12 +1,11 @@
 #include <numeric>
 #include <memory>
 #include <exception>
-
-#include "my_cuda_utils.hpp"
-#include "my_file_io_funcs.hpp"
-
 #include <algorithm>
 #include <numeric>
+
+#include "my_cuda_utils.hpp"
+#include "man_vec_file_io_funcs.hpp"
 
 #include "norm_autocorr_kernel.cuh"
 
@@ -131,7 +130,7 @@ public:
          samples.resize(adjusted_num_samples);
          
          //initialize_samples();
-         read_binary_file2<cufftComplex, managed_allocator_host<cufftComplex>>( samples, "/home/glenn/Sandbox/CUDA/norm_autocorr/input_samples.5.9GHz.10MHzBW.560u.LS.dat", num_samples, debug );
+         read_binary_file<cufftComplex>( samples, "/home/glenn/Sandbox/CUDA/norm_autocorr/input_samples.5.9GHz.10MHzBW.560u.LS.dat", num_samples, debug );
 
          gen_expected_norms();
 
@@ -185,7 +184,16 @@ public:
       mag_sqr_means.clear();
       norms.clear();
 
+      delete [] exp_samples_d16;
+      if ( exp_conj_sqrs ) delete [] exp_conj_sqrs;
+      if ( exp_conj_sqr_means ) delete [] exp_conj_sqr_means;
+      if ( exp_conj_sqr_mean_mags ) delete [] exp_conj_sqr_mean_mags;
+      if ( exp_mag_sqrs ) delete [] exp_mag_sqrs;
+      if ( exp_mag_sqr_means ) delete [] exp_mag_sqr_means;
+      if ( exp_norms ) delete [] exp_norms;
+
       if ( stream_ptr ) cudaStreamDestroy( *(stream_ptr.get()) );
+      
       dout << "dtor done\n";
    }
 

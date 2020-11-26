@@ -18,10 +18,10 @@ void NormAutocorrGPU::run() {
       int num_shared_bytes = 0;
       int num_blocks = (adjusted_num_samples + threads_per_block - 1) / threads_per_block;
 
-      debug_cout( debug, __func__, "(): num_samples is ", num_samples, "\n" ); 
-      debug_cout( debug, __func__, "(): threads_per_block is ", threads_per_block, "\n" ); 
-      debug_cout( debug, __func__, "(): adjusted_num_samples is ", adjusted_num_samples, "\n" ); 
-      debug_cout( debug, __func__, "(): num_blocks is ", num_blocks, "\n" ); 
+      dout << __func__ << "(): num_samples is " << num_samples << "\n"; 
+      dout << __func__ << "(): threads_per_block is " << threads_per_block << "\n"; 
+      dout << __func__ << "(): adjusted_num_samples is " << adjusted_num_samples << "\n"; 
+      dout << __func__ << "(): num_blocks is " << num_blocks << "\n"; 
 
       if ( debug ) {
          print_cufftComplexes( exp_samples_d16, num_samples, "Expected Samples D16: ", " ", "\n" ); 
@@ -54,16 +54,13 @@ void NormAutocorrGPU::run() {
       //try_cuda_func_throw( cerror, cudaStreamSynchronize( *(stream_ptr.get())  ) );
       try_cuda_func_throw( cerror, cudaDeviceSynchronize() );
       
-      // num_samples is 0 because the add_kernel modified the data and not a std::vector function
       debug_cout( debug, __func__, "(): num_samples is ", num_samples, "\n" ); 
 
-      //print_results( "Norms: " );
-      std::cout << "\n"; 
 
-      float max_diff = 1;
-      bool all_close = false;
 
       if ( debug ) {
+         float max_diff = 1;
+         bool all_close = false;
          std::cout << __func__ << "(): samples D16 Check:\n"; 
          all_close = cufftComplexes_are_close( samples_d16.data(), 
             exp_samples_d16, num_samples, max_diff, "samples_d16: ", debug);
@@ -125,7 +122,11 @@ void NormAutocorrGPU::run() {
                std::string{"(): Mismatch between actual norms from GPU and expected norms."} };
          }
          std::cout << "\n"; 
+         
+         print_results( "Norms: " );
+         std::cout << "\n"; 
       }
+      std::cout << "All " << num_samples << " Norm Values matched expected values. Test Passed.\n"; 
 
    } catch( std::exception& ex ) {
       std::cout << __func__ << "(): " << ex.what() << "\n"; 
