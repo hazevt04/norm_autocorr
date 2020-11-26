@@ -247,6 +247,6 @@ void NormAutocorrGPU::gen_expected_norms() {
    Duration_ms duration_ms = Steady_Clock::now() - start;
    cpu_milliseconds = duration_ms.count();
 
-   std::cout << "It took the CPU " << cpu_milliseconds << " to process " << num_samples << " samples\n";
+   std::cout << "It took the CPU " << cpu_milliseconds << " milliseconds to process " << num_samples << " samples\n";
    std::cout << "That's a rate of " << ((num_samples*1000.f)/cpu_milliseconds) << " samples processed per second\n\n"; 
 }
