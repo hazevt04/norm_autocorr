@@ -32,6 +32,10 @@ void NormAutocorrGPU::run() {
          print_vals( exp_mag_sqr_means, num_samples, "Expected Magnitude Square Means: ", " ", "\n" );
          print_vals( exp_norms, num_samples, "Expected Norms: ", " ", "\n" ); 
       }
+      
+      float gpu_milliseconds = 0.f;
+      Time_Point start = Steady_Clock::now();
+      
       cudaStreamAttachMemAsync( *(stream_ptr.get()), samples.data(), 0, cudaMemAttachGlobal );
 
       norm_autocorr_kernel<<<num_blocks, threads_per_block, num_shared_bytes, *(stream_ptr.get())>>>( 
@@ -54,13 +58,13 @@ void NormAutocorrGPU::run() {
       //try_cuda_func_throw( cerror, cudaStreamSynchronize( *(stream_ptr.get())  ) );
       try_cuda_func_throw( cerror, cudaDeviceSynchronize() );
       
-      debug_cout( debug, __func__, "(): num_samples is ", num_samples, "\n" ); 
+      Duration_ms duration_ms = Steady_Clock::now() - start;
+      gpu_milliseconds = duration_ms.count();
 
-
-
+      float max_diff = 1;
+      bool all_close = false;
       if ( debug ) {
-         float max_diff = 1;
-         bool all_close = false;
+         std::cout << __func__ << "(): num_samples is " << num_samples << "\n"; 
          std::cout << __func__ << "(): samples D16 Check:\n"; 
          all_close = cufftComplexes_are_close( samples_d16.data(), 
             exp_samples_d16, num_samples, max_diff, "samples_d16: ", debug);
@@ -115,18 +119,25 @@ void NormAutocorrGPU::run() {
          }
          std::cout << "\n"; 
 
-         std::cout << __func__ << "(): norms Check:\n"; 
-         all_close = vals_are_close( norms.data(), exp_norms, num_samples, max_diff, "norms: ", debug );
-         if (!all_close) {
-            throw std::runtime_error{ std::string{__func__} + 
-               std::string{"(): Mismatch between actual norms from GPU and expected norms."} };
-         }
-         std::cout << "\n"; 
          
          print_results( "Norms: " );
          std::cout << "\n"; 
       }
-      std::cout << "All " << num_samples << " Norm Values matched expected values. Test Passed.\n"; 
+      dout << __func__ << "(): norms Check:\n"; 
+      all_close = vals_are_close( norms.data(), exp_norms, num_samples, max_diff, "norms: ", debug );
+      if (!all_close) {
+         throw std::runtime_error{ std::string{__func__} + 
+            std::string{"(): Mismatch between actual norms from GPU and expected norms."} };
+      }
+      dout << "\n"; 
+      
+      std::cout << "All " << num_samples << " Norm Values matched expected values. Test Passed.\n\n"; 
+      std::cout << "It took the GPU " << gpu_milliseconds 
+         << " milliseconds to process " << num_samples 
+         << " samples\n";
+
+      std::cout << "That's a rate of " << ( (num_samples*1000.f)/gpu_milliseconds ) << " samples processed per second\n"; 
+
 
    } catch( std::exception& ex ) {
       std::cout << __func__ << "(): " << ex.what() << "\n"; 
@@ -220,6 +231,9 @@ void NormAutocorrGPU::gen_expected_norms() {
     
    dout << "num_samples is " << num_samples << "\n";
 
+   float cpu_milliseconds = 0.f;
+   Time_Point start = Steady_Clock::now();
+
    delay_vals16();
    calc_auto_corrs();
    calc_exp_conj_sqr_means();
@@ -229,4 +243,10 @@ void NormAutocorrGPU::gen_expected_norms() {
    calc_exp_mag_sqr_means();
    
    calc_norms();
+
+   Duration_ms duration_ms = Steady_Clock::now() - start;
+   cpu_milliseconds = duration_ms.count();
+
+   std::cout << "It took the CPU " << cpu_milliseconds << " to process " << num_samples << " samples\n";
+   std::cout << "That's a rate of " << ((num_samples*1000.f)/cpu_milliseconds) << " samples processed per second\n\n"; 
 }
