@@ -4,6 +4,8 @@
 #include <algorithm>
 #include <numeric>
 
+#include "my_args.hpp"
+
 #include "my_cuda_utils.hpp"
 #include "man_vec_file_io_funcs.hpp"
 
@@ -20,64 +22,9 @@ constexpr float FREQ = 1000.f;
 constexpr float AMPLITUDE = 50.f;
 constexpr int threads_per_block = 1024;
 
+const std::string default_filename = "/home/glenn/Sandbox/CUDA/norm_autocorr/input_samples.5.9GHz.10MHzBW.560u.LS.dat"; 
+
 class NormAutocorrGPU {
-private:
-   managed_vector_host<cufftComplex> samples;
-   managed_vector_global<cufftComplex> samples_d16;
-   managed_vector_global<cufftComplex> conj_sqrs;
-   managed_vector_global<cufftComplex> conj_sqr_means;
-   managed_vector_global<float> conj_sqr_mean_mags;
-   managed_vector_global<float> mag_sqrs;
-   managed_vector_global<float> mag_sqr_means;
-   managed_vector_global<float> norms;
-
-   cufftComplex* exp_samples_d16;
-   cufftComplex* exp_conj_sqrs;
-   cufftComplex* exp_conj_sqr_means;
-   float* exp_conj_sqr_mean_mags;
-   float* exp_mag_sqrs;
-   float* exp_mag_sqr_means;
-   float* exp_norms;
-
-   int num_samples = 4000;
-   int adjusted_num_samples = 4096;
-   int conj_sqrs_window_size = 48;
-   int mag_sqrs_window_size = 64;
-   int max_num_iters = 4000;
-   bool debug;
-
-   std::unique_ptr<cudaStream_t> stream_ptr;
-
-   inline void delay_vals16() {
-      
-      dout << __func__ << "() start\n";
-      dout << __func__ << "() samples.size() is " << samples.size() << "\n";
-      dout << __func__ << "() samples[0] is " << samples[0] << "\n";
-      dout << __func__ << "() samples[1] is " << samples[1] << "\n";
-
-      for( int index = 0; index < num_samples; ++index ) {
-         if ( index < 16 ) {
-            dout << __func__ << "() index: " << index << "\n";
-            exp_samples_d16[index] = make_cuFloatComplex(0.f, 0.f);
-         } else {
-            dout << __func__ << "() index greater than or equal to 16: " << index << "\n";
-            exp_samples_d16[index] = samples[index-16]; 
-         }
-      } 
-
-      dout << __func__ << "() exp_samples_d16[15] is " << exp_samples_d16[15] << "\n";
-      dout << __func__ << "() exp_samples_d16[16] is " << exp_samples_d16[16] << "\n";
-      dout << __func__ << "() exp_samples_d16[17] is " << exp_samples_d16[17] << "\n";
-      dout << __func__ << "() done\n";
-   }   
-
-   void calc_norms();
-   void calc_mags();
-   void calc_complex_mag_squares(); 
-   void calc_auto_corrs();
-   void calc_exp_conj_sqr_means();
-   void calc_exp_mag_sqr_means();
-
 public:
    NormAutocorrGPU(){}
    
@@ -86,11 +33,15 @@ public:
       int new_conj_sqrs_window_size,
       int new_mag_sqrs_window_size,
       int new_max_num_iters,
+      std::string new_test_select_string,
+      std::string new_filename,
       const bool new_debug ):
          num_samples( new_num_samples ),
          conj_sqrs_window_size( new_conj_sqrs_window_size ),
          mag_sqrs_window_size( new_mag_sqrs_window_size ),
          max_num_iters( new_max_num_iters ),
+         test_select_string( new_test_select_string ),
+         filename( new_filename ),
          debug( new_debug ) {
    
       try {
@@ -129,8 +80,7 @@ public:
 
          samples.resize(adjusted_num_samples);
          
-         //initialize_samples();
-         read_binary_file<cufftComplex>( samples, "/home/glenn/Sandbox/CUDA/norm_autocorr/input_samples.5.9GHz.10MHzBW.560u.LS.dat", num_samples, debug );
+         initialize_samples();
 
          gen_expected_norms();
 
@@ -153,18 +103,54 @@ public:
       }
    }
 
-   void initialize_samples( int seed = 0 ) {
-      gen_cufftComplexes( samples.data(), num_samples, -50.0, 50.0 );
-      /*for( size_t index = 0; index < num_samples; ++index ) {*/
-      /*   float t_val_real = AMPLITUDE*sin(2*PI*FREQ*index);*/
-      /*   float t_val_imag = AMPLITUDE*sin(2*PI*FREQ*index);*/
-      /*   samples[index] = make_cuFloatComplex( t_val_real, t_val_imag );*/
-      /*} */
-
-      if (debug) {
-         print_cufftComplexes( samples.data(), num_samples, "Samples: ",  " ",  "\n" ); 
-      }
-   }
+   NormAutocorrGPU( 
+      int new_num_samples, 
+      int new_conj_sqrs_window_size,
+      int new_mag_sqrs_window_size,
+      int new_max_num_iters,
+      my_args_t my_args ):
+         NormAutocorrGPU(
+            new_num_samples,
+            new_conj_sqrs_window_size,
+            new_mag_sqrs_window_size,
+            new_max_num_iters,
+            my_args.test_select_string,
+            my_args.filename,
+            my_args.debug ) {}
+   
+   void initialize_samples( const int seed = 0, const bool debug = false ) {
+      try {
+         if( test_select_string =="Sinusoidal" ) {
+            dout << __func__ << "(): Sinusoidal Sample Test Selected\n";
+            for( size_t index = 0; index < num_samples; ++index ) {
+               float t_val_real = AMPLITUDE*sin(2*PI*FREQ*index);
+               float t_val_imag = AMPLITUDE*sin(2*PI*FREQ*index);
+               samples[index] = make_cuFloatComplex( t_val_real, t_val_imag );
+            } 
+         } else if ( test_select_string == "Random" ) {
+            dout << __func__ << "(): Random Sample Test Selected\n";
+            gen_cufftComplexes( samples.data(), num_samples, -50.0, 50.0 );
+         } else if ( test_select_string == "Filebased" ) {
+            dout << __func__ << "(): File-Based Sample Test Selected. File is " << filename << "\n";
+            read_binary_file<cufftComplex>( 
+               samples,
+               filename.c_str(),
+               num_samples, 
+               debug );
+         } else {
+            throw std::runtime_error( std::string{__func__} + 
+               std::string{"(): Error: Invalid test select: "} + 
+                  test_select_string );
+         }            
+         if (debug) {
+            print_cufftComplexes( samples.data(), num_samples, "Samples: ",  " ",  "\n" ); 
+         }
+      } catch( std::exception& ex ) {
+         throw std::runtime_error{
+            std::string{__func__} + std::string{"(): "} + ex.what()
+         }; 
+      } // end of try
+   } // end of initialize_samples( const NormAutocorrGPU::TestSelect_e test_select = Sinusoidal, 
 
    void run();
    void gen_expected_norms();
@@ -196,7 +182,65 @@ public:
       
       dout << "dtor done\n";
    }
+private:
+   inline void delay_vals16() {
+      
+      dout << __func__ << "() start\n";
+      dout << __func__ << "() samples.size() is " << samples.size() << "\n";
+      dout << __func__ << "() samples[0] is " << samples[0] << "\n";
+      dout << __func__ << "() samples[1] is " << samples[1] << "\n";
 
+      for( int index = 0; index < num_samples; ++index ) {
+         if ( index < 16 ) {
+            dout << __func__ << "() index: " << index << "\n";
+            exp_samples_d16[index] = make_cuFloatComplex(0.f, 0.f);
+         } else {
+            dout << __func__ << "() index greater than or equal to 16: " << index << "\n";
+            exp_samples_d16[index] = samples[index-16]; 
+         }
+      } 
+
+      dout << __func__ << "() exp_samples_d16[15] is " << exp_samples_d16[15] << "\n";
+      dout << __func__ << "() exp_samples_d16[16] is " << exp_samples_d16[16] << "\n";
+      dout << __func__ << "() exp_samples_d16[17] is " << exp_samples_d16[17] << "\n";
+      dout << __func__ << "() done\n";
+   }   
+
+   void calc_norms();
+   void calc_mags();
+   void calc_complex_mag_squares(); 
+   void calc_auto_corrs();
+   void calc_exp_conj_sqr_means();
+   void calc_exp_mag_sqr_means();
+
+   managed_vector_host<cufftComplex> samples;
+   managed_vector_global<cufftComplex> samples_d16;
+   managed_vector_global<cufftComplex> conj_sqrs;
+   managed_vector_global<cufftComplex> conj_sqr_means;
+   managed_vector_global<float> conj_sqr_mean_mags;
+   managed_vector_global<float> mag_sqrs;
+   managed_vector_global<float> mag_sqr_means;
+   managed_vector_global<float> norms;
+
+   cufftComplex* exp_samples_d16;
+   cufftComplex* exp_conj_sqrs;
+   cufftComplex* exp_conj_sqr_means;
+   float* exp_conj_sqr_mean_mags;
+   float* exp_mag_sqrs;
+   float* exp_mag_sqr_means;
+   float* exp_norms;
+
+   std::string test_select_string;
+
+   std::string filename = default_filename;
+   int num_samples = 4000;
+   int adjusted_num_samples = 4096;
+   int conj_sqrs_window_size = 48;
+   int mag_sqrs_window_size = 64;
+   int max_num_iters = 4000;
+   bool debug = false;
+
+   std::unique_ptr<cudaStream_t> stream_ptr;
 };
 
 
