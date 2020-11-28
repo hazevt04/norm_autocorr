@@ -5,13 +5,12 @@
 #include <numeric>
 
 #include "my_cuda_utils.hpp"
-#include "man_vec_file_io_funcs.hpp"
+#include "pinned_vec_file_io_funcs.hpp"
 
 #include "norm_autocorr_kernel.cuh"
 
 #include "device_allocator.hpp"
-#include "managed_allocator_global.hpp"
-#include "managed_allocator_host.hpp"
+#include "pinned_allocator.hpp"
 
 #include "VariadicToOutputStream.hpp"
 
