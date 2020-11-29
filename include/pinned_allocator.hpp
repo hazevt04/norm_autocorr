@@ -28,10 +28,10 @@ class pinned_allocator {
          value_type* result = nullptr;
          if ( !memory_is_allocated ) {
      
-            cudaError_t error = cudaMalloc(&result, n*sizeof(T));
+            cudaError_t error = cudaHostAlloc(&result, n*sizeof(T), cudaHostAllocDefault);
         
             if(error != cudaSuccess) {
-              throw std::runtime_error("pinned_allocator::allocate(): cudaMalloc()");
+              throw std::runtime_error("pinned_allocator::allocate(): cudaHostAlloc()");
             }
             memory_is_allocated = true;
          }
