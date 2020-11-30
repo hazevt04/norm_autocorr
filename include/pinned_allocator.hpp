@@ -44,7 +44,7 @@ class pinned_allocator {
     
     void deallocate(value_type* ptr, size_t size) {
        if ( ptr ) {
-         cudaFree( ptr );
+         cudaFreeHost( ptr );
          ptr = nullptr;
        }
     } 

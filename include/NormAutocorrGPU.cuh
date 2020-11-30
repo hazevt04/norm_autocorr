@@ -52,6 +52,7 @@ public:
 
          adjusted_num_samples = threads_per_block * num_blocks;
          adjusted_num_sample_bytes = adjusted_num_samples * sizeof( cufftComplex );
+         adjusted_num_norm_bytes = adjusted_num_samples * sizeof( float );
          num_norm_bytes = adjusted_num_samples * sizeof( float );
 
          dout << __func__ << "(): adjusted number of samples for allocation is " 
@@ -89,6 +90,7 @@ public:
          } 
 
          samples.resize(adjusted_num_samples);
+         norms.resize(adjusted_num_samples);
          
          initialize_samples();
 
