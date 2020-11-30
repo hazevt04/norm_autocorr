@@ -7,14 +7,12 @@
 #include "my_args.hpp"
 
 #include "my_cuda_utils.hpp"
-#include "pinned_vec_file_io_funcs.hpp"
+#include "pinned_mapped_vec_file_io_funcs.hpp"
 
 #include "norm_autocorr_kernel.cuh"
 
 #include "device_allocator.hpp"
-#include "pinned_allocator.hpp"
-
-#include "VariadicToOutputStream.hpp"
+#include "pinned_mapped_allocator.hpp"
 
 constexpr float PI = 3.1415926535897238463f;
 constexpr float FREQ = 1000.f;
@@ -44,7 +42,8 @@ public:
          debug( new_debug ) {
    
       try {
-         debug_cout( debug, __func__, "(): num_samples is ", num_samples, "\n" );
+         cudaError_t cerror = cudaSuccess;
+         dout << __func__ << "(): num_samples is " << num_samples << "\n";
 
          num_blocks = (num_samples + (threads_per_block-1))/threads_per_block;
 
@@ -63,7 +62,6 @@ public:
             << adjusted_num_norm_bytes << "\n\n";
 
          samples.reserve( adjusted_num_samples );
-         d_samples.reserve( adjusted_num_samples );
          samples_d16.reserve( adjusted_num_samples );
          conj_sqrs.reserve( adjusted_num_samples );
          conj_sqr_means.reserve( adjusted_num_samples );
@@ -71,8 +69,10 @@ public:
          mag_sqrs.reserve( adjusted_num_samples );
          mag_sqr_means.reserve( adjusted_num_samples );
          norms.reserve( adjusted_num_samples );
-         d_norms.reserve( adjusted_num_samples );
 
+         try_cuda_func_throw( cerror, cudaHostGetDevicePointer( &d_samples, samples.data(), 0 ) );
+         try_cuda_func_throw( cerror, cudaHostGetDevicePointer( &d_norms, norms.data(), 0 ) );
+         
          exp_samples_d16 = new cufftComplex[num_samples];
          exp_conj_sqrs = new cufftComplex[num_samples];
          exp_conj_sqr_means = new cufftComplex[num_samples];
@@ -96,14 +96,12 @@ public:
 
          gen_expected_norms();
 
-         std::fill( d_samples.begin(), d_samples.end(), make_cuFloatComplex(0.f,0.f) );
          std::fill( samples_d16.begin(), samples_d16.end(), make_cuFloatComplex(0.f,0.f) );
          std::fill( conj_sqrs.begin(), conj_sqrs.end(), make_cuFloatComplex(0.f,0.f) );
          std::fill( conj_sqr_means.begin(), conj_sqr_means.end(), make_cuFloatComplex(0.f,0.f) );
          std::fill( conj_sqr_mean_mags.begin(), conj_sqr_mean_mags.end(), 0 );
          std::fill( mag_sqrs.begin(), mag_sqrs.end(), 0 );
          std::fill( mag_sqr_means.begin(), mag_sqr_means.end(), 0 );
-         std::fill( d_norms.begin(), d_norms.end(), 0 );
          std::fill( norms.begin(), norms.end(), 0 );
 
          stream_ptr = my_make_unique<cudaStream_t>();
@@ -175,7 +173,6 @@ public:
 
    ~NormAutocorrGPU() {
       dout << "dtor called\n";
-      d_samples.clear();    
       samples.clear();    
       samples_d16.clear();
       conj_sqrs.clear();
@@ -184,7 +181,6 @@ public:
       mag_sqrs.clear();
       mag_sqr_means.clear();
       norms.clear();
-      d_norms.clear();
 
       delete [] exp_samples_d16;
       if ( exp_conj_sqrs ) delete [] exp_conj_sqrs;
@@ -227,16 +223,17 @@ private:
    void calc_exp_conj_sqr_means();
    void calc_exp_mag_sqr_means();
 
-   pinned_vector<cufftComplex> samples;
-   device_vector<cufftComplex> d_samples;
+   pinned_mapped_vector<cufftComplex> samples;
    device_vector<cufftComplex> samples_d16;
    device_vector<cufftComplex> conj_sqrs;
    device_vector<cufftComplex> conj_sqr_means;
    device_vector<float> conj_sqr_mean_mags;
    device_vector<float> mag_sqrs;
    device_vector<float> mag_sqr_means;
-   device_vector<float> d_norms;
-   pinned_vector<float> norms;
+   pinned_mapped_vector<float> norms;
+
+   cufftComplex* d_samples;
+   float* d_norms;
 
    cufftComplex* exp_samples_d16;
    cufftComplex* exp_conj_sqrs;
