@@ -4,9 +4,6 @@
 #include "my_cuda_utils.hpp"
 #include "my_cufft_utils.hpp"
 
-//#include "device_allocator.hpp"
-//#include "pinned_allocator.hpp"
-
 #include "NormAutocorrGPU.cuh"
 
 #include "norm_autocorr_kernel.cuh"
@@ -133,14 +130,16 @@ void NormAutocorrGPU::calc_auto_corrs() {
 void NormAutocorrGPU::calc_exp_conj_sqr_means() {
 
    // exp_conj_sqr_means must already be all zeros
-   debug_printf( debug, "%s(): exp_conj_sqr_means[0] = { %f, %f }\n", __func__, exp_conj_sqr_means[0].x, exp_conj_sqr_means[0].y ); 
+   dout << __func__ << "(): exp_conj_sqr_means[0] = { " 
+      << exp_conj_sqr_means[0].x << ", " << exp_conj_sqr_means[0].y << " }\n"; 
    for( int index = 0; index < conj_sqrs_window_size; ++index ) {
       exp_conj_sqr_means[0] = cuCaddf( exp_conj_sqr_means[0], exp_conj_sqrs[index] );
    }
-   debug_printf( debug, "%s(): after initial sum: exp_conj_sqr_means[0] = { %f, %f }\n", __func__, exp_conj_sqr_means[0].x, exp_conj_sqr_means[0].y ); 
+   dout << __func__ << "(): after initial summation, exp_conj_sqr_means[0] = { " 
+      << exp_conj_sqr_means[0].x << ", " << exp_conj_sqr_means[0].y << " }\n"; 
       
    int num_sums = num_samples - conj_sqrs_window_size;
-   debug_printf( debug, "%s(): num_sums is %d\n", __func__, num_sums ); 
+   dout << __func__ << "(): num_sums is " << num_sums << "\n"; 
    for( int index = 1; index < num_sums; ++index ) {
       cufftComplex temp = cuCsubf( exp_conj_sqr_means[index-1], exp_conj_sqrs[index-1] );
       exp_conj_sqr_means[index] = cuCaddf( temp, exp_conj_sqrs[index + conj_sqrs_window_size-1] );
@@ -154,13 +153,13 @@ void NormAutocorrGPU::calc_exp_conj_sqr_means() {
 
 void NormAutocorrGPU::calc_exp_mag_sqr_means() {
 
-   debug_printf( debug, "%s(): exp_mag_sqr_means[0] = %f\n", __func__, exp_mag_sqr_means[0] ); 
+   dout << __func__ << "(): exp_mag_sqr_means[0] = " << exp_mag_sqr_means[0] << "\n"; 
    // exp_mag_sqr_means must already be all zeros
    for( int index = 0; index < mag_sqrs_window_size; ++index ) {
       exp_mag_sqr_means[0] = exp_mag_sqr_means[0] + exp_mag_sqrs[index];
    }
-   debug_printf( debug, "%s(): After initial sum: exp_mag_sqr_means[0] = %f\n", __func__, exp_mag_sqr_means[0] ); 
-      
+   dout << __func__ << "(): After initial sum, exp_mag_sqr_means[0] = " << exp_mag_sqr_means[0] << "\n"; 
+    
    int num_sums = num_samples - mag_sqrs_window_size;
    for( int index = 1; index < num_sums; ++index ) {
       exp_mag_sqr_means[index] = exp_mag_sqr_means[index-1] - exp_mag_sqrs[index-1] + exp_mag_sqrs[index + mag_sqrs_window_size-1];
@@ -196,7 +195,8 @@ void NormAutocorrGPU::gen_expected_norms() {
       std::cout << "That's a rate of " << ((num_samples*1000.f)/cpu_milliseconds) << " samples processed per second\n\n"; 
 
       float norms_from_file[num_samples];
-      read_binary_file<float>( norms_from_file, "/home/glenn/Sandbox/CUDA/norm_autocorr/norm_autocorr.5.9GHz.10MHzBW.560u.LS.dat", num_samples, debug );
+      read_binary_file<float>( norms_from_file, 
+            "/home/glenn/Sandbox/CUDA/norm_autocorr/norm_autocorr.5.9GHz.10MHzBW.560u.LS.dat", num_samples, debug );
 
       float max_diff = 1.f;
       bool all_close = false;

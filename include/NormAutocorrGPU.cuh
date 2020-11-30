@@ -54,8 +54,12 @@ public:
          adjusted_num_sample_bytes = adjusted_num_samples * sizeof( cufftComplex );
          num_norm_bytes = adjusted_num_samples * sizeof( float );
 
-         debug_printf( debug, "%s(): adjusted number of samples for allocation is %d\n", 
-            __func__, adjusted_num_samples ); 
+         dout << __func__ << "(): adjusted number of samples for allocation is " 
+            << adjusted_num_samples << "\n";
+         dout << __func__ << "(): adjusted number of sample bytes for cudaMemcpyAsync is "
+            << adjusted_num_sample_bytes << "\n";
+         dout << __func__ << "(): adjusted number of norm bytes for cudaMemcpyAsync is "
+            << adjusted_num_norm_bytes << "\n\n";
 
          samples.reserve( adjusted_num_samples );
          d_samples.reserve( adjusted_num_samples );
@@ -79,7 +83,7 @@ public:
          for( int index = 0; index < num_samples; ++index ) {
 
             exp_samples_d16[index] = make_cuFloatComplex(0.f,0.f);
-            exp_conj_sqrs[index] = 
+            exp_conj_sqrs[index] =  make_cuFloatComplex(0.f,0.f);
             exp_conj_sqr_means[index] = make_cuFloatComplex(0.f,0.f);
             exp_mag_sqr_means[index] = 0.f;
          } 
@@ -102,7 +106,7 @@ public:
 
          stream_ptr = my_make_unique<cudaStream_t>();
          try_cudaStreamCreate( stream_ptr.get() );
-         debug_cout( debug, __func__,  "(): after cudaStreamCreate()\n" ); 
+         dout << __func__ << "(): after cudaStreamCreate()\n"; 
 
       } catch( std::exception& ex ) {
          throw std::runtime_error{
