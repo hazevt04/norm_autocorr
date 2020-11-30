@@ -46,9 +46,14 @@ public:
       try {
          debug_cout( debug, __func__, "(): num_samples is ", num_samples, "\n" );
 
-         int resize_factor = (num_samples + (threads_per_block-1))/threads_per_block;
+         num_blocks = (num_samples + (threads_per_block-1))/threads_per_block;
 
-         adjusted_num_samples = threads_per_block * resize_factor;
+         dout << __func__ << "(): num_blocks is " << num_blocks << "\n";
+
+         adjusted_num_samples = threads_per_block * num_blocks;
+         adjusted_num_sample_bytes = adjusted_num_samples * sizeof( cufftComplex );
+         num_norm_bytes = adjusted_num_samples * sizeof( float );
+
          debug_printf( debug, "%s(): adjusted number of samples for allocation is %d\n", 
             __func__, adjusted_num_samples ); 
 
@@ -238,9 +243,13 @@ private:
    std::string test_select_string;
    std::string filename = default_filename;
 
-   size_t num_samples_bytes = 16000;
-   size_t adjusted_num_samples_bytes = 16384;
+   size_t num_sample_bytes = 32000;
+   size_t adjusted_num_sample_bytes = 32768;
+   size_t num_norm_bytes = 16000;
+   size_t adjusted_num_norm_bytes = 16384;
 
+   int num_blocks = 4;
+   int threads_per_block = 1024;
    int num_samples = 4000;
    int adjusted_num_samples = 4096;
    int conj_sqrs_window_size = 48;

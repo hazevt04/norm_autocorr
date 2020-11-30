@@ -4,9 +4,8 @@
 #include "my_cuda_utils.hpp"
 #include "my_cufft_utils.hpp"
 
-#include "device_allocator.hpp"
-#include "managed_allocator_host.hpp"
-#include "managed_allocator_global.hpp"
+//#include "device_allocator.hpp"
+//#include "pinned_allocator.hpp"
 
 #include "NormAutocorrGPU.cuh"
 
@@ -16,12 +15,14 @@ void NormAutocorrGPU::run() {
    try {
       cudaError_t cerror = cudaSuccess;
       int num_shared_bytes = 0;
-      int num_blocks = (adjusted_num_samples + threads_per_block - 1) / threads_per_block;
 
       dout << __func__ << "(): num_samples is " << num_samples << "\n"; 
       dout << __func__ << "(): threads_per_block is " << threads_per_block << "\n"; 
+      dout << __func__ << "(): num_blocks is " << num_blocks << "\n\n"; 
+      
       dout << __func__ << "(): adjusted_num_samples is " << adjusted_num_samples << "\n"; 
-      dout << __func__ << "(): num_blocks is " << num_blocks << "\n"; 
+      dout << __func__ << "(): adjusted_num_sample_bytes is " << adjusted_num_sample_bytes << "\n"; 
+      dout << __func__ << "(): adjusted_num_norm_bytes is " << adjusted_num_norm_bytes << "\n"; 
 
       if ( debug ) {
          print_cufftComplexes( exp_samples_d16, num_samples, "Expected Samples D16: ", " ", "\n" ); 
@@ -36,7 +37,6 @@ void NormAutocorrGPU::run() {
       float gpu_milliseconds = 0.f;
       Time_Point start = Steady_Clock::now();
       
-      //cudaStreamAttachMemAsync( *(stream_ptr.get()), samples.data(), 0, cudaMemAttachGlobal );
       try_cuda_func( cerror, cudaMemcpyAsync( d_samples.data(), samples.data(), adjusted_num_sample_bytes,
                cudaMemcpyHostToDevice, *(stream_ptr.get()) ) );
 
@@ -54,12 +54,9 @@ void NormAutocorrGPU::run() {
          num_samples 
       );
 
-      //// Prefetch fspecs from the GPU
-      //cudaStreamAttachMemAsync( *(stream_ptr.get()), norms.data(), 0, cudaMemAttachHost );   
-      try_cuda_func( cerror, cudaMemcpyAsync( norms.data(), d_norms.data(), adjusted_num_sample_bytes,
+      try_cuda_func( cerror, cudaMemcpyAsync( norms.data(), d_norms.data(), adjusted_num_norm_bytes,
                cudaMemcpyDeviceToHost, *(stream_ptr.get()) ) );
       
-      //try_cuda_func_throw( cerror, cudaStreamSynchronize( *(stream_ptr.get())  ) );
       try_cuda_func_throw( cerror, cudaDeviceSynchronize() );
       
       Duration_ms duration_ms = Steady_Clock::now() - start;
@@ -68,62 +65,6 @@ void NormAutocorrGPU::run() {
       float max_diff = 1;
       bool all_close = false;
       if ( debug ) {
-         std::cout << __func__ << "(): num_samples is " << num_samples << "\n"; 
-         std::cout << __func__ << "(): samples D16 Check:\n"; 
-         all_close = cufftComplexes_are_close( samples_d16.data(), 
-            exp_samples_d16, num_samples, max_diff, "samples_d16: ", debug);
-         if (!all_close) {
-            throw std::runtime_error{ std::string{__func__} + 
-               std::string{"(): Mismatch between actual samples_d16 from GPU and expected samples_d16."} };
-         }
-         std::cout << "\n"; 
-
-         std::cout << __func__ << "(): conj_sqrs Check:\n"; 
-         all_close = cufftComplexes_are_close( conj_sqrs.data(), 
-            exp_conj_sqrs, num_samples, max_diff, "conj_sqrs: ", debug);
-         if (!all_close) {
-            throw std::runtime_error{ std::string{__func__} + 
-               std::string{"(): Mismatch between actual conj_sqrs from GPU and expected conj_sqrs."} };
-         }
-         std::cout << "\n"; 
-
-         std::cout << __func__ << "(): conj_sqr_means Check:\n"; 
-         all_close = cufftComplexes_are_close( conj_sqr_means.data(), 
-            exp_conj_sqr_means, num_samples, max_diff, "conj_sqr_means: ", debug);
-         if (!all_close) {
-            throw std::runtime_error{ std::string{__func__} + 
-               std::string{"(): Mismatch between actual conj_sqr_means from GPU and expected conj_sqr_means."} };
-         }
-         std::cout << "\n"; 
-      
-         std::cout << __func__ << "(): conj_sqr_mean_mags Check:\n"; 
-         all_close = vals_are_close( conj_sqr_mean_mags.data(), 
-            exp_conj_sqr_mean_mags, num_samples, max_diff, "conj_sqr_mean_mags: ", debug);
-         if (!all_close) {
-            throw std::runtime_error{ std::string{__func__} + 
-               std::string{"(): Mismatch between actual conj_sqr_mean_mags from GPU and expected conj_sqr_mean_mags."} };
-         }
-         std::cout << "\n"; 
-
-         std::cout << __func__ << "(): mag_sqrs Check:\n"; 
-         all_close = vals_are_close( mag_sqrs.data(), 
-            exp_mag_sqrs, num_samples, max_diff, "mag_sqrs: ", debug);
-         if (!all_close) {
-            throw std::runtime_error{ std::string{__func__} + 
-               std::string{"(): Mismatch between actual mag_sqrs from GPU and expected mag_sqrs."} };
-         }
-         std::cout << "\n"; 
-
-         std::cout << __func__ << "(): mag_sqr_means Check:\n"; 
-         all_close = vals_are_close( mag_sqr_means.data(), 
-            exp_mag_sqr_means, num_samples, max_diff, "mag_sqr_means: ", debug);
-         if (!all_close) {
-            throw std::runtime_error{ std::string{__func__} + 
-               std::string{"(): Mismatch between actual mag_sqr_means from GPU and expected mag_sqr_means."} };
-         }
-         std::cout << "\n"; 
-
-         
          print_results( "Norms: " );
          std::cout << "\n"; 
       }
