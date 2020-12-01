@@ -23,6 +23,7 @@ set(EXEC_NAME "${CMAKE_PROJECT_NAME}")
 
 set(SRCS
    "src/my_utils.cpp"
+   "src/my_cuda_utils.cpp"
    "src/my_file_io_funcs.cpp"
    "src/my_cufft_utils.cpp"
    "src/norm_autocorr_kernel.cu"

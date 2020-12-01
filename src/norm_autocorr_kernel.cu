@@ -142,30 +142,30 @@ void norm_autocorr_kernel(
    int num_mag_sqr_sums = num_samples - mag_sqr_window_size;
 
    delay16<cufftComplex>( samples_d16, samples, num_samples );
-   __syncthreads();
+   //__syncthreads();
    auto_correlation( conj_sqrs, samples_d16, samples, num_samples );
-   __syncthreads();
+   //__syncthreads();
    
    calc_conj_sqr_means( 
       conj_sqr_means, 
       conj_sqrs, 
       conj_sqr_window_size, 
       num_conj_sqr_sums );
-   __syncthreads();
+   //__syncthreads();
 
    calc_conj_sqr_mean_mags( conj_sqr_mean_mags, conj_sqr_means, 
       num_conj_sqr_sums );
-   __syncthreads();
+   //__syncthreads();
 
    calc_mag_sqrs( mag_sqrs, samples, num_samples );
-   __syncthreads();
+   //__syncthreads();
 
    calc_mag_sqr_means( 
       mag_sqr_means, 
       mag_sqrs,
       mag_sqr_window_size, 
       num_mag_sqr_sums );
-   __syncthreads();
+   //__syncthreads();
    
    normalize( norms, conj_sqr_mean_mags, mag_sqr_means, num_samples );
 }

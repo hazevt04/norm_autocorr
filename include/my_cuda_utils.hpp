@@ -25,6 +25,12 @@ inline void try_cudaStreamCreate( cudaStream_t* pStream ) {
    }      
 }
 
+cudaError_t checkAndPrint(const char* name, int sync); 
+
+ 
+cudaError_t checkCUDAError(const char * name, int sync);
+
+
 #define check_cuda_error(cerror,loc) { \
   if ( cerror != cudaSuccess ) { \
     printf( "%s(): "#loc " ERROR: %s (%d)\n", __func__, \

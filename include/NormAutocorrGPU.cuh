@@ -43,6 +43,19 @@ public:
    
       try {
          cudaError_t cerror = cudaSuccess;
+
+         try_cuda_func_throw( cerror, cudaGetDevice( &device_id ) );
+         dout << __func__ << "(): Device ID is " << device_id << "\n";
+
+         cudaDeviceProp prop;
+         
+         try_cuda_func_throw( cerror, cudaGetDeviceProperties(&prop, device_id) );
+         
+         can_prefetch = prop.concurrentManagedAccess;
+         if ( !can_prefetch ) {
+            dout << __func__ << "(): cudaMemPrefetchAsync() not supported\n";
+         }
+
          dout << __func__ << "(): num_samples is " << num_samples << "\n";
 
          num_blocks = (num_samples + (threads_per_block-1))/threads_per_block;
@@ -70,6 +83,8 @@ public:
          mag_sqr_means.reserve( adjusted_num_samples );
          norms.reserve( adjusted_num_samples );
 
+         //d_samples.reserve( adjusted_num_samples );
+         //d_norms.reserve( adjusted_num_samples );
          try_cuda_func_throw( cerror, cudaHostGetDevicePointer( &d_samples, samples.data(), 0 ) );
          try_cuda_func_throw( cerror, cudaHostGetDevicePointer( &d_norms, norms.data(), 0 ) );
          
@@ -234,6 +249,8 @@ private:
 
    cufftComplex* d_samples;
    float* d_norms;
+   //device_vector<cufftComplex> d_samples;
+   //device_vector<float> d_norms;
 
    cufftComplex* exp_samples_d16;
    cufftComplex* exp_conj_sqrs;
@@ -251,6 +268,7 @@ private:
    size_t num_norm_bytes = 16000;
    size_t adjusted_num_norm_bytes = 16384;
 
+   int device_id = 0;
    int num_blocks = 4;
    int threads_per_block = 1024;
    int num_samples = 4000;
@@ -260,6 +278,7 @@ private:
    int max_num_iters = 4000;
    bool debug = false;
 
+   bool can_prefetch = false;
    std::unique_ptr<cudaStream_t> stream_ptr;
 };
 
