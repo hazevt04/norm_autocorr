@@ -39,6 +39,19 @@ void auto_correlation( cufftComplex* __restrict__ conj_sqrs, const cufftComplex*
 
 
 __device__
+void auto_correlation2( cufftComplex* __restrict__ conj_sqrs, const cufftComplex* __restrict__ samples_d16,
+   const cufftComplex* __restrict__ samples, const int num_vals ) {
+
+   int global_index = blockDim.x * blockIdx.x + threadIdx.x;
+   int stride = blockDim.x * gridDim.x;
+
+   for (int index = global_index; index < num_vals/2; index += stride) {
+      conj_sqrs[index] = cuCmulf( samples[index], cuConjf( samples_d16[index] ) );
+      conj_sqrs[index + 1] = cuCmulf( samples[index + 1], cuConjf( samples_d16[index + 1] ) );
+   }
+}
+
+__device__
 void calc_conj_sqr_means( 
       cufftComplex* __restrict__ conj_sqr_means, 
       const cufftComplex* __restrict__ conj_sqrs, 
@@ -57,8 +70,33 @@ void calc_conj_sqr_means(
       }
       conj_sqr_means[index] = complex_divide_by_scalar( t_conj_sqr_sum, (float)conj_sqr_window_size );
    }
-
 }
+
+
+__device__
+void calc_conj_sqr_means2( 
+      cufftComplex* __restrict__ conj_sqr_means, 
+      const cufftComplex* __restrict__ conj_sqrs, 
+      const int conj_sqr_window_size, 
+      const int num_vals 
+   ) { 
+
+   int global_index = blockDim.x * blockIdx.x + threadIdx.x;
+   int stride = blockDim.x * gridDim.x;
+
+   for (int index = global_index; index < num_vals/2; index += stride) {
+      cufftComplex t_conj_sqr_sum1 = make_cuFloatComplex(0.0,0.0);
+      cufftComplex t_conj_sqr_sum2 = make_cuFloatComplex(0.0,0.0);
+
+      for( int w_index = 0; w_index < conj_sqr_window_size/2; w_index+=2 ) {
+         t_conj_sqr_sum1 = cuCaddf( t_conj_sqr_sum1, conj_sqrs[index + w_index] );
+         t_conj_sqr_sum2 = cuCaddf( t_conj_sqr_sum2, conj_sqrs[index + w_index + 1] );
+      }
+      conj_sqr_means[index] = complex_divide_by_scalar( t_conj_sqr_sum1, (float)conj_sqr_window_size );
+      conj_sqr_means[index + 1] = complex_divide_by_scalar( t_conj_sqr_sum2, (float)conj_sqr_window_size );
+   }
+}
+
 
 __device__
 void calc_conj_sqr_mean_mags( float* __restrict__ conj_sqr_mean_mags, const cufftComplex* __restrict__ conj_sqr_means, const int num_vals ) {
@@ -73,6 +111,19 @@ void calc_conj_sqr_mean_mags( float* __restrict__ conj_sqr_mean_mags, const cuff
 
 
 __device__
+void calc_conj_sqr_mean_mags2( float* __restrict__ conj_sqr_mean_mags, const cufftComplex* __restrict__ conj_sqr_means, const int num_vals ) {
+
+   int global_index = blockDim.x * blockIdx.x + threadIdx.x;
+   int stride = blockDim.x * gridDim.x;
+
+   for (int index = global_index; index < num_vals/2; index += stride) {
+      conj_sqr_mean_mags[index] = cuCabsf( conj_sqr_means[index] );
+      conj_sqr_mean_mags[index + 1] = cuCabsf( conj_sqr_means[index + 1] );
+   }
+}
+
+
+__device__
 void calc_mag_sqrs( float* __restrict__ mag_sqrs, const cufftComplex* __restrict__ samples, const int num_vals ) {
 
    int global_index = blockDim.x * blockIdx.x + threadIdx.x;
@@ -81,6 +132,20 @@ void calc_mag_sqrs( float* __restrict__ mag_sqrs, const cufftComplex* __restrict
    for (int index = global_index; index < num_vals; index += stride) {
       float temp = cuCabsf( samples[index] );
       mag_sqrs[index] = temp * temp;
+   }
+}
+
+__device__
+void calc_mag_sqrs2( float* __restrict__ mag_sqrs, const cufftComplex* __restrict__ samples, const int num_vals ) {
+
+   int global_index = blockDim.x * blockIdx.x + threadIdx.x;
+   int stride = blockDim.x * gridDim.x;
+
+   for (int index = global_index; index < num_vals/2; index += stride) {
+      float temp1 = cuCabsf( samples[index] );
+      float temp2 = cuCabsf( samples[index + 1] );
+      mag_sqrs[index] = temp1 * temp1;
+      mag_sqrs[index + 1] = temp2 * temp2;
    }
 }
 
@@ -103,7 +168,30 @@ void calc_mag_sqr_means(
       }
       mag_sqr_means[index] = t_mag_sqr_sum/(float)mag_sqr_window_size;
    }
+}
 
+
+__device__
+void calc_mag_sqr_means2( 
+      float* __restrict__ mag_sqr_means, 
+      const float* __restrict__ mag_sqrs,
+      const int mag_sqr_window_size, 
+      const int num_vals 
+   ) { 
+
+   int global_index = blockDim.x * blockIdx.x + threadIdx.x;
+   int stride = blockDim.x * gridDim.x;
+
+   for (int index = global_index; index < num_vals/2; index += stride) {
+      float  t_mag_sqr_sum1 = 0.0;
+      float  t_mag_sqr_sum2 = 0.0;
+      for( int w_index = 0; w_index < mag_sqr_window_size/2; w_index+=2 ) {
+         t_mag_sqr_sum1 = t_mag_sqr_sum1 + mag_sqrs[index + w_index];
+         t_mag_sqr_sum2 = t_mag_sqr_sum2 + mag_sqrs[index + w_index + 1];
+      }
+      mag_sqr_means[index] = t_mag_sqr_sum1/(float)mag_sqr_window_size;
+      mag_sqr_means[index + 1] = t_mag_sqr_sum2/(float)mag_sqr_window_size;
+   }
 }
 
 
@@ -121,9 +209,29 @@ void normalize( float* __restrict__ norms, const float* __restrict__ conj_sqr_me
          norms[index] = 0.f;
       }
    }
-
 }
 
+
+__device__
+void normalize2( float* __restrict__ norms, const float* __restrict__ conj_sqr_mean_mags, 
+   const float* __restrict__ mag_sqr_means, const int num_samples ) {
+
+   int global_index = blockDim.x * blockIdx.x + threadIdx.x;
+   int stride = blockDim.x * gridDim.x;
+
+   for (int index = global_index; index < num_samples/2; index += stride) {
+      if ( mag_sqr_means[index] > 0.f ) {
+         norms[index] =  conj_sqr_mean_mags[index]/mag_sqr_means[index];
+      } else {
+         norms[index] = 0.f;
+      }
+      if ( mag_sqr_means[index + 1] > 0.f ) {
+         norms[index + 1] =  conj_sqr_mean_mags[index + 1]/mag_sqr_means[index + 1];
+      } else {
+         norms[index + 1] = 0.f;
+      }
+   }
+}
 __global__
 void norm_autocorr_kernel( 
    float* __restrict__ norms, 
@@ -143,29 +251,29 @@ void norm_autocorr_kernel(
 
    delay16<cufftComplex>( samples_d16, samples, num_samples );
    __syncthreads();
-   auto_correlation( conj_sqrs, samples_d16, samples, num_samples );
+   auto_correlation2( conj_sqrs, samples_d16, samples, num_samples );
    __syncthreads();
    
-   calc_conj_sqr_means( 
+   calc_conj_sqr_means2( 
       conj_sqr_means, 
       conj_sqrs, 
       conj_sqr_window_size, 
       num_conj_sqr_sums );
    __syncthreads();
 
-   calc_conj_sqr_mean_mags( conj_sqr_mean_mags, conj_sqr_means, 
+   calc_conj_sqr_mean_mags2( conj_sqr_mean_mags, conj_sqr_means, 
       num_conj_sqr_sums );
    __syncthreads();
 
-   calc_mag_sqrs( mag_sqrs, samples, num_samples );
+   calc_mag_sqrs2( mag_sqrs, samples, num_samples );
    __syncthreads();
 
-   calc_mag_sqr_means( 
+   calc_mag_sqr_means2( 
       mag_sqr_means, 
       mag_sqrs,
       mag_sqr_window_size, 
       num_mag_sqr_sums );
    __syncthreads();
    
-   normalize( norms, conj_sqr_mean_mags, mag_sqr_means, num_samples );
+   normalize2( norms, conj_sqr_mean_mags, mag_sqr_means, num_samples );
 }

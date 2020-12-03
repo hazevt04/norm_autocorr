@@ -32,6 +32,14 @@ void calc_conj_sqr_means(
 );
 
 __device__
+void calc_conj_sqr_means2( 
+   cufftComplex* __restrict__ conj_sqr_means, 
+   const cufftComplex* __restrict__ conj_sqrs, 
+   const int conj_sqr_window_size, 
+   const int num_vals 
+);
+
+__device__
 void calc_conj_sqr_mean_mags( float* __restrict__ conj_sqr_mean_mags, const cufftComplex* __restrict__ conj_sqr_means, const int num_vals );
 
 
@@ -44,6 +52,14 @@ void calc_mag_sqrs(
 
 __device__
 void calc_mag_sqr_means( 
+   float* __restrict__ mag_sqr_means, 
+   const float* __restrict__ mag_sqrs,
+   const int mag_sqr_window_size, 
+   const int num_vals 
+);
+
+__device__
+void calc_mag_sqr_means2( 
    float* __restrict__ mag_sqr_means, 
    const float* __restrict__ mag_sqrs,
    const int mag_sqr_window_size, 
