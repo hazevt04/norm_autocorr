@@ -23,6 +23,8 @@ void NormAutocorrGPU::run() {
       dout << __func__ << "(): adjusted_num_samples is " << adjusted_num_samples << "\n"; 
       dout << __func__ << "(): num_blocks is " << num_blocks << "\n"; 
 
+      gen_expected_norms();
+
       if ( debug ) {
          print_cufftComplexes( exp_samples_d16, num_samples, "Expected Samples D16: ", " ", "\n" ); 
          print_cufftComplexes( exp_conj_sqrs, num_samples, "Expected Conjugate Squares: ", " ", "\n" );
@@ -32,11 +34,13 @@ void NormAutocorrGPU::run() {
          print_vals( exp_mag_sqr_means, num_samples, "Expected Magnitude Square Means: ", " ", "\n" );
          print_vals( exp_norms, num_samples, "Expected Norms: ", " ", "\n" ); 
       }
-      
+     
       float gpu_milliseconds = 0.f;
       Time_Point start = Steady_Clock::now();
       
-      cudaStreamAttachMemAsync( *(stream_ptr.get()), samples.data(), 0, cudaMemAttachGlobal );
+      //try_cuda_func_throw( cerror, cudaStreamAttachMemAsync( *(stream_ptr.get()), samples.data(), 0, cudaMemAttachGlobal ) );
+      try_cuda_func_throw( cerror, cudaMemPrefetchAsync( samples.data(), adjusted_num_sample_bytes, 
+         device_id, *(stream_ptr.get()) ) );
 
       norm_autocorr_kernel<<<num_blocks, threads_per_block, num_shared_bytes, *(stream_ptr.get())>>>( 
          norms.data(), 
@@ -52,10 +56,10 @@ void NormAutocorrGPU::run() {
          num_samples 
       );
 
-      //// Prefetch fspecs from the GPU
-      cudaStreamAttachMemAsync( *(stream_ptr.get()), norms.data(), 0, cudaMemAttachHost );   
+      //try_cuda_func_throw( cerror, cudaStreamAttachMemAsync( *(stream_ptr.get()), norms.data(), 0, cudaMemAttachHost ) );
+      try_cuda_func_throw( cerror, cudaMemPrefetchAsync( norms.data(), adjusted_num_norm_bytes, 
+         device_id, *(stream_ptr.get()) ) );
       
-      //try_cuda_func_throw( cerror, cudaStreamSynchronize( *(stream_ptr.get())  ) );
       try_cuda_func_throw( cerror, cudaDeviceSynchronize() );
       
       Duration_ms duration_ms = Steady_Clock::now() - start;
@@ -226,10 +230,10 @@ void NormAutocorrGPU::calc_exp_mag_sqr_means() {
    } 
 }
 
-
-void NormAutocorrGPU::gen_expected_norms() {
+void NormAutocorrGPU::cpu_run() {
    try { 
-      dout << "num_samples is " << num_samples << "\n";
+      dout << __func__ << "(): num_samples is " 
+         << num_samples << "\n";
 
       float cpu_milliseconds = 0.f;
       Time_Point start = Steady_Clock::now();
@@ -247,23 +251,43 @@ void NormAutocorrGPU::gen_expected_norms() {
       Duration_ms duration_ms = Steady_Clock::now() - start;
       cpu_milliseconds = duration_ms.count();
 
-      std::cout << "It took the CPU " << cpu_milliseconds << " milliseconds to process " << num_samples << " samples\n";
-      std::cout << "That's a rate of " << ((num_samples*1000.f)/cpu_milliseconds) << " samples processed per second\n\n"; 
-
-      float norms_from_file[num_samples];
-      read_binary_file<float>( norms_from_file, "/home/glenn/Sandbox/CUDA/norm_autocorr/norm_autocorr.5.9GHz.10MHzBW.560u.LS.dat", num_samples, debug );
-
-      float max_diff = 1.f;
-      bool all_close = false;
-      dout << __func__ << "(): Exp Norms Check Against File:\n"; 
-      all_close = vals_are_close( exp_norms, norms_from_file, num_samples, max_diff, "exp norms: ", debug );
-      if (!all_close) {
-         throw std::runtime_error{ std::string{__func__} + 
-            std::string{"(): Mismatch between expected norms and norms from file."} };
-      }
-      dout << "\n"; 
+      std::cout << "It took the CPU " 
+         << cpu_milliseconds << " milliseconds to process " 
+         << num_samples << " samples\n";
+      std::cout << "That's a rate of " 
+         << ((num_samples*1000.f)/cpu_milliseconds) 
+         << " samples processed per second\n\n"; 
    } catch( std::exception& ex ) {
-      throw std::runtime_error( std::string{__func__} +  std::string{"(): "} + ex.what() ); 
+      throw std::runtime_error( std::string{__func__} +
+         std::string{"(): "} + ex.what() ); 
+   }
+
+}
+
+void NormAutocorrGPU::gen_expected_norms() {
+   try {
+      cpu_run();
+
+      if( test_select_string =="Filebased" ) {
+         float norms_from_file[num_samples];
+         read_binary_file<float>( norms_from_file, 
+            "/home/glenn/Sandbox/CUDA/norm_autocorr/norm_autocorr.5.9GHz.10MHzBW.560u.LS.dat", 
+            num_samples, debug );
+
+         float max_diff = 1.f;
+         bool all_close = false;
+         dout << __func__ << "(): Exp Norms Check Against File:\n"; 
+         all_close = vals_are_close( exp_norms, norms_from_file, 
+            num_samples, max_diff, "exp norms: ", debug );
+         if (!all_close) {
+            throw std::runtime_error{ std::string{__func__} + 
+               std::string{"(): Mismatch between expected norms and norms from file."} };
+         }
+         dout << "\n";
+      }
+   } catch( std::exception& ex ) {
+      throw std::runtime_error( std::string{__func__} + 
+         std::string{"(): "} + ex.what() ); 
    }
 
 }

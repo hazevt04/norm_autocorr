@@ -15,8 +15,6 @@
 #include "managed_allocator_host.hpp"
 #include "managed_allocator_global.hpp"
 
-#include "VariadicToOutputStream.hpp"
-
 constexpr float PI = 3.1415926535897238463f;
 constexpr float FREQ = 1000.f;
 constexpr float AMPLITUDE = 50.f;
@@ -45,14 +43,31 @@ public:
          debug( new_debug ) {
    
       try {
-         debug_cout( debug, __func__, "(): num_samples is ", num_samples, "\n" );
+         cudaError_t cerror = cudaSuccess;
+         dout << __func__ << "(): num_samples is " << num_samples << "\n";
 
-         int resize_factor = (num_samples + (threads_per_block-1))/threads_per_block;
+         num_blocks = (num_samples + (threads_per_block-1))/threads_per_block;
 
-         adjusted_num_samples = threads_per_block * resize_factor;
-         debug_printf( debug, "%s(): adjusted number of samples for allocation is %d\n", 
-            __func__, adjusted_num_samples ); 
+         adjusted_num_samples = threads_per_block * num_blocks;
+         dout << __func__ << "(): adjusted number of samples for allocation is " 
+            << adjusted_num_samples << "\n";
 
+         adjusted_num_sample_bytes = adjusted_num_samples * sizeof( cufftComplex );
+         adjusted_num_norm_bytes = adjusted_num_samples * sizeof( float );
+
+         try_cuda_func_throw( cerror, cudaGetDevice( &device_id ) );
+         
+         cudaDeviceProp props;
+         try_cuda_func_throw( cerror, cudaGetDeviceProperties(&props, device_id) );
+
+         can_prefetch = props.concurrentManagedAccess;
+         can_map_memory = props.canMapHostMemory;
+         gpu_is_integrated = props.integrated;
+
+         dout << __func__ << "(): can_prefetch is " << (can_prefetch ? "true" : "false") << "\n";
+         dout << __func__ << "(): can_map_memory is " << (can_map_memory ? "true" : "false") << "\n";
+         dout << __func__ << "(): gpu_is_integrated is " << (gpu_is_integrated ? "true" : "false") << "\n";
+         
          samples.reserve( adjusted_num_samples );
          samples_d16.reserve( adjusted_num_samples );
          conj_sqrs.reserve( adjusted_num_samples );
@@ -73,7 +88,7 @@ public:
          for( int index = 0; index < num_samples; ++index ) {
 
             exp_samples_d16[index] = make_cuFloatComplex(0.f,0.f);
-            exp_conj_sqrs[index] = 
+            exp_conj_sqrs[index] = make_cuFloatComplex(0.f,0.f);
             exp_conj_sqr_means[index] = make_cuFloatComplex(0.f,0.f);
             exp_mag_sqr_means[index] = 0.f;
          } 
@@ -81,8 +96,6 @@ public:
          samples.resize(adjusted_num_samples);
          
          initialize_samples();
-
-         gen_expected_norms();
 
          std::fill( samples_d16.begin(), samples_d16.end(), make_cuFloatComplex(0.f,0.f) );
          std::fill( conj_sqrs.begin(), conj_sqrs.end(), make_cuFloatComplex(0.f,0.f) );
@@ -94,7 +107,7 @@ public:
 
          stream_ptr = my_make_unique<cudaStream_t>();
          try_cudaStreamCreate( stream_ptr.get() );
-         debug_cout( debug, __func__,  "(): after cudaStreamCreate()\n" ); 
+         dout << __func__ << "(): after cudaStreamCreate()\n"; 
 
       } catch( std::exception& ex ) {
          throw std::runtime_error{
@@ -102,6 +115,7 @@ public:
          }; 
       }
    }
+
 
    NormAutocorrGPU( 
       int new_num_samples, 
@@ -118,6 +132,7 @@ public:
             my_args.filename,
             my_args.debug ) {}
    
+
    void initialize_samples( const int seed = 0, const bool debug = false ) {
       try {
          if( test_select_string =="Sinusoidal" ) {
@@ -153,6 +168,7 @@ public:
    } // end of initialize_samples( const NormAutocorrGPU::TestSelect_e test_select = Sinusoidal, 
 
    void run();
+   void cpu_run();
    void gen_expected_norms();
 
    void print_results( const std::string& prefix = "Norms: " ) {
@@ -192,10 +208,8 @@ private:
 
       for( int index = 0; index < num_samples; ++index ) {
          if ( index < 16 ) {
-            dout << __func__ << "() index: " << index << "\n";
             exp_samples_d16[index] = make_cuFloatComplex(0.f, 0.f);
          } else {
-            dout << __func__ << "() index greater than or equal to 16: " << index << "\n";
             exp_samples_d16[index] = samples[index-16]; 
          }
       } 
@@ -231,14 +245,25 @@ private:
    float* exp_norms;
 
    std::string test_select_string;
-
    std::string filename = default_filename;
+   
    int num_samples = 4000;
+   int num_blocks = 4;
+   int device_id = 0;
    int adjusted_num_samples = 4096;
    int conj_sqrs_window_size = 48;
    int mag_sqrs_window_size = 64;
    int max_num_iters = 4000;
    bool debug = false;
+
+   bool can_prefetch = false;
+   bool can_map_memory = false;
+   bool gpu_is_integrated = false;
+   
+   size_t num_sample_bytes = 32000; 
+   size_t adjusted_num_sample_bytes = 32768; 
+   size_t num_norm_bytes = 16000; 
+   size_t adjusted_num_norm_bytes = 16384; 
 
    std::unique_ptr<cudaStream_t> stream_ptr;
 };

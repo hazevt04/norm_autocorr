@@ -12,8 +12,7 @@ void check_num_file_bytes(llong& num_file_bytes, const char* filename, const boo
          ifile.seekg(0, ifile.end);
          num_file_bytes = (llong)ifile.tellg();
          ifile.seekg(0, ifile.beg);
-         debug_cout(
-            debug, __func__, "(): File size for ", filename, " is ", num_file_bytes, " bytes\n\n");
+         dout << __func__ << "(): File size for " << filename << " is " << num_file_bytes << " bytes\n\n";
       } else {
          throw std::runtime_error{std::string{"Unable to open file, "} + filename +
             std::string{", for checking filesize."}};
@@ -36,7 +35,7 @@ void test_my_file_io_funcs(
       gen_vals<float>(write_vals, 0, num_vals);
       print_vals<float>(write_vals, "Write Vals:\n");
 
-      debug_cout(debug, "The input text file is ", filename, "\n");
+      dout << __func__ << "(): The input text file is " << filename << "\n";
 
       write_binary_file(write_vals, filename.c_str(), debug);
 
