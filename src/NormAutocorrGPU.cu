@@ -21,6 +21,8 @@ void NormAutocorrGPU::run() {
       dout << __func__ << "(): adjusted_num_sample_bytes is " << adjusted_num_sample_bytes << "\n"; 
       dout << __func__ << "(): adjusted_num_norm_bytes is " << adjusted_num_norm_bytes << "\n"; 
 
+      gen_expected_norms();
+
       if ( debug ) {
          print_cufftComplexes( exp_samples_d16, num_samples, "Expected Samples D16: ", " ", "\n" ); 
          print_cufftComplexes( exp_conj_sqrs, num_samples, "Expected Conjugate Squares: ", " ", "\n" );
@@ -171,11 +173,12 @@ void NormAutocorrGPU::calc_exp_mag_sqr_means() {
 }
 
 
-void NormAutocorrGPU::gen_expected_norms() {
+void NormAutocorrGPU::cpu_run() {
    try { 
-      dout << "num_samples is " << num_samples << "\n";
-
       float cpu_milliseconds = 0.f;
+      
+      dout << __func__ << "(): num_samples is " << num_samples << "\n";
+      
       Time_Point start = Steady_Clock::now();
 
       delay_vals16();
@@ -198,15 +201,33 @@ void NormAutocorrGPU::gen_expected_norms() {
       read_binary_file<float>( norms_from_file, 
             "/home/glenn/Sandbox/CUDA/norm_autocorr/norm_autocorr.5.9GHz.10MHzBW.560u.LS.dat", num_samples, debug );
 
-      float max_diff = 1.f;
-      bool all_close = false;
-      dout << __func__ << "(): Exp Norms Check Against File:\n"; 
-      all_close = vals_are_close( exp_norms, norms_from_file, num_samples, max_diff, "exp norms: ", debug );
-      if (!all_close) {
-         throw std::runtime_error{ std::string{__func__} + 
-            std::string{"(): Mismatch between expected norms and norms from file."} };
+   } catch( std::exception& ex ) {
+      throw std::runtime_error( std::string{__func__} +  std::string{"(): "} + ex.what() ); 
+   }
+}
+
+
+void NormAutocorrGPU::gen_expected_norms() {
+   try { 
+
+      cpu_run();
+
+      if ( test_select_string == "Filebased" ) {
+         float norms_from_file[num_samples];
+         read_binary_file<float>( norms_from_file, 
+               "/home/glenn/Sandbox/CUDA/norm_autocorr/norm_autocorr.5.9GHz.10MHzBW.560u.LS.dat", num_samples, debug );
+
+         float max_diff = 1.f;
+         bool all_close = false;
+         dout << __func__ << "(): Exp Norms Check Against File:\n"; 
+         all_close = vals_are_close( exp_norms, norms_from_file, num_samples, max_diff, "exp norms: ", debug );
+         if (!all_close) {
+            throw std::runtime_error{ std::string{__func__} + 
+               std::string{"(): Mismatch between expected norms and norms from file."} };
+         }
+         dout << "\n";
       }
-      dout << "\n"; 
+
    } catch( std::exception& ex ) {
       throw std::runtime_error( std::string{__func__} +  std::string{"(): "} + ex.what() ); 
    }

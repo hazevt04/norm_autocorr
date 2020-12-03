@@ -44,10 +44,16 @@ public:
          debug( new_debug ) {
    
       try {
-         debug_cout( debug, __func__, "(): num_samples is ", num_samples, "\n" );
+         cudaError_t cerror = cudaSuccess;         
+         try_cuda_func_throw( cerror, cudaGetDevice( &device_id ) );
+
+         stream_ptr = my_make_unique<cudaStream_t>();
+         try_cudaStreamCreate( stream_ptr.get() );
+         dout << __func__ << "(): after cudaStreamCreate()\n"; 
+
+         dout << __func__ << "(): num_samples is " << num_samples << "\n";
 
          num_blocks = (num_samples + (threads_per_block-1))/threads_per_block;
-
          dout << __func__ << "(): num_blocks is " << num_blocks << "\n";
 
          adjusted_num_samples = threads_per_block * num_blocks;
@@ -63,6 +69,8 @@ public:
             << adjusted_num_norm_bytes << "\n\n";
 
          samples.reserve( adjusted_num_samples );
+         
+         
          d_samples.reserve( adjusted_num_samples );
          samples_d16.reserve( adjusted_num_samples );
          conj_sqrs.reserve( adjusted_num_samples );
@@ -72,6 +80,18 @@ public:
          mag_sqr_means.reserve( adjusted_num_samples );
          norms.reserve( adjusted_num_samples );
          d_norms.reserve( adjusted_num_samples );
+         
+         norms.resize(adjusted_num_samples);
+         std::fill( norms.begin(), norms.end(), 0 );
+
+         //try_cuda_func_throw( cerror, cudaMemset( d_samples.data(), adjusted_num_sample_bytes, 0 ) );
+         //try_cuda_func_throw( cerror, cudaMemset( samples_d16.data(), adjusted_num_sample_bytes, 0 ) );
+         //try_cuda_func_throw( cerror, cudaMemset( conj_sqrs.data(), adjusted_num_sample_bytes, 0 ) );
+         //try_cuda_func_throw( cerror, cudaMemset( conj_sqr_means.data(), adjusted_num_sample_bytes, 0 ) );
+         //try_cuda_func_throw( cerror, cudaMemset( conj_sqr_mean_mags.data(), adjusted_num_sample_bytes, 0 ) );
+         //try_cuda_func_throw( cerror, cudaMemset( mag_sqrs.data(), adjusted_num_norm_bytes, 0 ) );
+         //try_cuda_func_throw( cerror, cudaMemset( mag_sqr_means.data(), adjusted_num_norm_bytes, 0 ) );
+         //try_cuda_func_throw( cerror, cudaMemset( d_norms.data(), adjusted_num_norm_bytes, 0 ) );
 
          exp_samples_d16 = new cufftComplex[num_samples];
          exp_conj_sqrs = new cufftComplex[num_samples];
@@ -86,29 +106,12 @@ public:
             exp_samples_d16[index] = make_cuFloatComplex(0.f,0.f);
             exp_conj_sqrs[index] =  make_cuFloatComplex(0.f,0.f);
             exp_conj_sqr_means[index] = make_cuFloatComplex(0.f,0.f);
+            exp_mag_sqrs[index] = 0.f;
             exp_mag_sqr_means[index] = 0.f;
+            exp_norms[index] = 0.f;
          } 
 
-         samples.resize(adjusted_num_samples);
-         norms.resize(adjusted_num_samples);
-         
          initialize_samples();
-
-         gen_expected_norms();
-
-         std::fill( d_samples.begin(), d_samples.end(), make_cuFloatComplex(0.f,0.f) );
-         std::fill( samples_d16.begin(), samples_d16.end(), make_cuFloatComplex(0.f,0.f) );
-         std::fill( conj_sqrs.begin(), conj_sqrs.end(), make_cuFloatComplex(0.f,0.f) );
-         std::fill( conj_sqr_means.begin(), conj_sqr_means.end(), make_cuFloatComplex(0.f,0.f) );
-         std::fill( conj_sqr_mean_mags.begin(), conj_sqr_mean_mags.end(), 0 );
-         std::fill( mag_sqrs.begin(), mag_sqrs.end(), 0 );
-         std::fill( mag_sqr_means.begin(), mag_sqr_means.end(), 0 );
-         std::fill( d_norms.begin(), d_norms.end(), 0 );
-         std::fill( norms.begin(), norms.end(), 0 );
-
-         stream_ptr = my_make_unique<cudaStream_t>();
-         try_cudaStreamCreate( stream_ptr.get() );
-         dout << __func__ << "(): after cudaStreamCreate()\n"; 
 
       } catch( std::exception& ex ) {
          throw std::runtime_error{
@@ -134,6 +137,9 @@ public:
    
    void initialize_samples( const int seed = 0, const bool debug = false ) {
       try {
+         samples.resize(adjusted_num_samples);
+         std::fill( samples.begin(), samples.end(), make_cuFloatComplex(0.f,0.f) );
+
          if( test_select_string =="Sinusoidal" ) {
             dout << __func__ << "(): Sinusoidal Sample Test Selected\n";
             for( size_t index = 0; index < num_samples; ++index ) {
@@ -167,6 +173,7 @@ public:
    } // end of initialize_samples( const NormAutocorrGPU::TestSelect_e test_select = Sinusoidal, 
 
    void run();
+   void cpu_run();
    void gen_expected_norms();
 
    void print_results( const std::string& prefix = "Norms: " ) {
@@ -254,6 +261,7 @@ private:
    size_t num_norm_bytes = 16000;
    size_t adjusted_num_norm_bytes = 16384;
 
+   int device_id = 0;
    int num_blocks = 4;
    int threads_per_block = 1024;
    int num_samples = 4000;
