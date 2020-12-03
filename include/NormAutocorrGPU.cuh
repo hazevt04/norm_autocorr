@@ -109,7 +109,7 @@ public:
          
          initialize_samples();
 
-         gen_expected_norms();
+         
 
          std::fill( samples_d16.begin(), samples_d16.end(), make_cuFloatComplex(0.f,0.f) );
          std::fill( conj_sqrs.begin(), conj_sqrs.end(), make_cuFloatComplex(0.f,0.f) );
@@ -180,6 +180,7 @@ public:
    } // end of initialize_samples( const NormAutocorrGPU::TestSelect_e test_select = Sinusoidal, 
 
    void run();
+   void cpu_run();
    void gen_expected_norms();
 
    void print_results( const std::string& prefix = "Norms: " ) {
