@@ -66,45 +66,25 @@ void NormAutocorrGPU::run() {
       float max_diff = 1;
       bool all_close = false;
 
-      if ( debug ) {
-         dout << __func__ << "(): conj_sqrs check:\n";
-         all_close = cufftComplexes_are_close( conj_sqrs.data(), exp_conj_sqrs, 
-            num_samples, max_diff, "conj_sqrs: ", debug );
-         if (!all_close) {
-            throw std::runtime_error{ std::string{__func__} + 
-               std::string{"(): Mismatch between actual conj_sqrs from GPU and expected conj_sqrs."} };
-         }
-         dout << "Conjugate Squares Matched\n";
-
-         dout << __func__ << "(): conj_sqr_means check:\n";
-         all_close = cufftComplexes_are_close( conj_sqr_means.data(), exp_conj_sqr_means, 
-            num_samples, max_diff, "conj_sqr_means: ", debug );
-         if (!all_close) {
-            throw std::runtime_error{ std::string{__func__} + 
-               std::string{"(): Mismatch between actual conj_sqr_means from GPU and expected conj_sqr_means."} };
-         }
-         dout << "Conjugate Square Means Matched\n";
-
-      }
       //if ( debug ) {
       //   print_results( "Norms: " );
       //   std::cout << "\n"; 
       //}
 
-      //dout << __func__ << "(): norms Check:\n"; 
-      //all_close = vals_are_close( norms.data(), exp_norms, num_samples, max_diff, "norms: ", debug );
-      //if (!all_close) {
-      //   throw std::runtime_error{ std::string{__func__} + 
-      //      std::string{"(): Mismatch between actual norms from GPU and expected norms."} };
-      //}
-      //dout << "\n"; 
+      dout << __func__ << "(): norms Check:\n"; 
+      all_close = vals_are_close( norms.data(), exp_norms, num_samples, max_diff, "norms: ", debug );
+      if (!all_close) {
+         throw std::runtime_error{ std::string{__func__} + 
+            std::string{"(): Mismatch between actual norms from GPU and expected norms."} };
+      }
+      dout << "\n"; 
       
-      //std::cout << "All " << num_samples << " Norm Values matched expected values. Test Passed.\n\n"; 
-      //std::cout << "It took the GPU " << gpu_milliseconds 
-      //   << " milliseconds to process " << num_samples 
-      //   << " samples\n";
+      std::cout << "All " << num_samples << " Norm Values matched expected values. Test Passed.\n\n"; 
+      std::cout << "It took the GPU " << gpu_milliseconds 
+         << " milliseconds to process " << num_samples 
+         << " samples\n";
 
-      //std::cout << "That's a rate of " << ( (num_samples*1000.f)/gpu_milliseconds ) << " samples processed per second\n"; 
+      std::cout << "That's a rate of " << ( (num_samples*1000.f)/gpu_milliseconds ) << " samples processed per second\n"; 
 
 
    } catch( std::exception& ex ) {

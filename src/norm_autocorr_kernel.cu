@@ -113,10 +113,10 @@ void calc_conj_sqr_mean_mags( float* __restrict__ conj_sqr_mean_mags, const cuff
 __device__
 void calc_conj_sqr_mean_mags2( float* __restrict__ conj_sqr_mean_mags, const cufftComplex* __restrict__ conj_sqr_means, const int num_vals ) {
 
-   int global_index = blockDim.x * blockIdx.x + threadIdx.x;
+   int global_index = 2*(blockDim.x * blockIdx.x + threadIdx.x);
    int stride = blockDim.x * gridDim.x;
 
-   for (int index = global_index; index < num_vals/2; index += stride) {
+   for (int index = global_index; index < num_vals; index += stride) {
       conj_sqr_mean_mags[index] = cuCabsf( conj_sqr_means[index] );
       conj_sqr_mean_mags[index + 1] = cuCabsf( conj_sqr_means[index + 1] );
    }
@@ -138,10 +138,10 @@ void calc_mag_sqrs( float* __restrict__ mag_sqrs, const cufftComplex* __restrict
 __device__
 void calc_mag_sqrs2( float* __restrict__ mag_sqrs, const cufftComplex* __restrict__ samples, const int num_vals ) {
 
-   int global_index = blockDim.x * blockIdx.x + threadIdx.x;
+   int global_index = 2*(blockDim.x * blockIdx.x + threadIdx.x);
    int stride = blockDim.x * gridDim.x;
 
-   for (int index = global_index; index < num_vals/2; index += stride) {
+   for (int index = global_index; index < num_vals; index += stride) {
       float temp1 = cuCabsf( samples[index] );
       float temp2 = cuCabsf( samples[index + 1] );
       mag_sqrs[index] = temp1 * temp1;
@@ -179,13 +179,13 @@ void calc_mag_sqr_means2(
       const int num_vals 
    ) { 
 
-   int global_index = blockDim.x * blockIdx.x + threadIdx.x;
+   int global_index = 2*(blockDim.x * blockIdx.x + threadIdx.x);
    int stride = blockDim.x * gridDim.x;
 
-   for (int index = global_index; index < num_vals/2; index += stride) {
+   for (int index = global_index; index < num_vals; index += stride) {
       float  t_mag_sqr_sum1 = 0.0;
       float  t_mag_sqr_sum2 = 0.0;
-      for( int w_index = 0; w_index < mag_sqr_window_size/2; w_index+=2 ) {
+      for( int w_index = 0; w_index < mag_sqr_window_size; ++w_index ) {
          t_mag_sqr_sum1 = t_mag_sqr_sum1 + mag_sqrs[index + w_index];
          t_mag_sqr_sum2 = t_mag_sqr_sum2 + mag_sqrs[index + w_index + 1];
       }
@@ -216,10 +216,10 @@ __device__
 void normalize2( float* __restrict__ norms, const float* __restrict__ conj_sqr_mean_mags, 
    const float* __restrict__ mag_sqr_means, const int num_samples ) {
 
-   int global_index = blockDim.x * blockIdx.x + threadIdx.x;
+   int global_index = 2*(blockDim.x * blockIdx.x + threadIdx.x);
    int stride = blockDim.x * gridDim.x;
 
-   for (int index = global_index; index < num_samples/2; index += stride) {
+   for (int index = global_index; index < num_samples; index += stride) {
       if ( mag_sqr_means[index] > 0.f ) {
          norms[index] =  conj_sqr_mean_mags[index]/mag_sqr_means[index];
       } else {
@@ -261,19 +261,19 @@ void norm_autocorr_kernel(
       num_conj_sqr_sums );
    __syncthreads();
 
-   calc_conj_sqr_mean_mags( conj_sqr_mean_mags, conj_sqr_means, 
+   calc_conj_sqr_mean_mags2( conj_sqr_mean_mags, conj_sqr_means, 
       num_conj_sqr_sums );
    __syncthreads();
 
-   calc_mag_sqrs( mag_sqrs, samples, num_samples );
+   calc_mag_sqrs2( mag_sqrs, samples, num_samples );
    __syncthreads();
 
-   calc_mag_sqr_means( 
+   calc_mag_sqr_means2( 
       mag_sqr_means, 
       mag_sqrs,
       mag_sqr_window_size, 
       num_mag_sqr_sums );
    __syncthreads();
    
-   normalize( norms, conj_sqr_mean_mags, mag_sqr_means, num_samples );
+   normalize2( norms, conj_sqr_mean_mags, mag_sqr_means, num_samples );
 }
