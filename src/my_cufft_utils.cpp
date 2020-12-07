@@ -17,7 +17,7 @@ bool cufftComplexes_are_close( const cufftComplex* lvals, const cufftComplex* rv
       float abs_diff_real = abs( lvals[index].x - rvals[index].x );
       float abs_diff_imag = abs( lvals[index].y - rvals[index].y );
 
-      dout << "Index: " << index << ": max_diff = " << max_diff 
+      dout << prefix << "Index: " << index << ": max_diff = " << max_diff 
          << " actual diffs: { " <<  abs_diff_real << ", " << abs_diff_imag << " }\n";
       if ( ( abs_diff_real > max_diff ) || ( abs_diff_imag > max_diff ) ) {
          dout << "Actual: {" << lvals[index].x << ", " << lvals[index].y << "}\n";

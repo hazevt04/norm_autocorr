@@ -36,25 +36,27 @@ void NormAutocorrGPU::run() {
       float gpu_milliseconds = 0.f;
       Time_Point start = Steady_Clock::now();
       
-      try_cuda_func( cerror, cudaMemcpyAsync( d_samples.data(), samples.data(), adjusted_num_sample_bytes,
-               cudaMemcpyHostToDevice, *(stream_ptr.get()) ) );
+      //try_cuda_func( cerror, cudaMemcpyAsync( d_samples.data(), samples.data(), adjusted_num_sample_bytes,
+      //         cudaMemcpyHostToDevice, *(stream_ptr.get()) ) );
 
       norm_autocorr_kernel<<<num_blocks, threads_per_block, num_shared_bytes, *(stream_ptr.get())>>>( 
-         d_norms.data(), 
+         norms.data(), 
+         //d_norms.data(), 
          mag_sqr_means.data(), 
          mag_sqrs.data(), 
          conj_sqr_mean_mags.data(), 
          conj_sqr_means.data(), 
          conj_sqrs.data(), 
          samples_d16.data(), 
-         d_samples.data(),
+         samples.data(),
+         //d_samples.data(),
          conj_sqrs_window_size,
          mag_sqrs_window_size,
          num_samples 
       );
 
-      try_cuda_func( cerror, cudaMemcpyAsync( norms.data(), d_norms.data(), adjusted_num_norm_bytes,
-               cudaMemcpyDeviceToHost, *(stream_ptr.get()) ) );
+      //try_cuda_func( cerror, cudaMemcpyAsync( norms.data(), d_norms.data(), adjusted_num_norm_bytes,
+      //         cudaMemcpyDeviceToHost, *(stream_ptr.get()) ) );
       
       try_cuda_func_throw( cerror, cudaDeviceSynchronize() );
       
@@ -63,24 +65,46 @@ void NormAutocorrGPU::run() {
 
       float max_diff = 1;
       bool all_close = false;
-      if ( debug ) {
-         print_results( "Norms: " );
-         std::cout << "\n"; 
-      }
-      dout << __func__ << "(): norms Check:\n"; 
-      all_close = vals_are_close( norms.data(), exp_norms, num_samples, max_diff, "norms: ", debug );
-      if (!all_close) {
-         throw std::runtime_error{ std::string{__func__} + 
-            std::string{"(): Mismatch between actual norms from GPU and expected norms."} };
-      }
-      dout << "\n"; 
-      
-      std::cout << "All " << num_samples << " Norm Values matched expected values. Test Passed.\n\n"; 
-      std::cout << "It took the GPU " << gpu_milliseconds 
-         << " milliseconds to process " << num_samples 
-         << " samples\n";
 
-      std::cout << "That's a rate of " << ( (num_samples*1000.f)/gpu_milliseconds ) << " samples processed per second\n"; 
+      if ( debug ) {
+         dout << __func__ << "(): conj_sqrs check:\n";
+         all_close = cufftComplexes_are_close( conj_sqrs.data(), exp_conj_sqrs, 
+            num_samples, max_diff, "conj_sqrs: ", debug );
+         if (!all_close) {
+            throw std::runtime_error{ std::string{__func__} + 
+               std::string{"(): Mismatch between actual conj_sqrs from GPU and expected conj_sqrs."} };
+         }
+         dout << "Conjugate Squares Matched\n";
+
+         dout << __func__ << "(): conj_sqr_means check:\n";
+         all_close = cufftComplexes_are_close( conj_sqr_means.data(), exp_conj_sqr_means, 
+            num_samples, max_diff, "conj_sqr_means: ", debug );
+         if (!all_close) {
+            throw std::runtime_error{ std::string{__func__} + 
+               std::string{"(): Mismatch between actual conj_sqr_means from GPU and expected conj_sqr_means."} };
+         }
+         dout << "Conjugate Square Means Matched\n";
+
+      }
+      //if ( debug ) {
+      //   print_results( "Norms: " );
+      //   std::cout << "\n"; 
+      //}
+
+      //dout << __func__ << "(): norms Check:\n"; 
+      //all_close = vals_are_close( norms.data(), exp_norms, num_samples, max_diff, "norms: ", debug );
+      //if (!all_close) {
+      //   throw std::runtime_error{ std::string{__func__} + 
+      //      std::string{"(): Mismatch between actual norms from GPU and expected norms."} };
+      //}
+      //dout << "\n"; 
+      
+      //std::cout << "All " << num_samples << " Norm Values matched expected values. Test Passed.\n\n"; 
+      //std::cout << "It took the GPU " << gpu_milliseconds 
+      //   << " milliseconds to process " << num_samples 
+      //   << " samples\n";
+
+      //std::cout << "That's a rate of " << ( (num_samples*1000.f)/gpu_milliseconds ) << " samples processed per second\n"; 
 
 
    } catch( std::exception& ex ) {

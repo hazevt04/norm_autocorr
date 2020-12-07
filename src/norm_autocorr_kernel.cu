@@ -42,10 +42,10 @@ __device__
 void auto_correlation2( cufftComplex* __restrict__ conj_sqrs, const cufftComplex* __restrict__ samples_d16,
    const cufftComplex* __restrict__ samples, const int num_vals ) {
 
-   int global_index = blockDim.x * blockIdx.x + threadIdx.x;
+   int global_index = 2*(blockDim.x * blockIdx.x + threadIdx.x);
    int stride = blockDim.x * gridDim.x;
 
-   for (int index = global_index; index < num_vals/2; index += stride) {
+   for (int index = global_index; index < num_vals; index += stride) {
       conj_sqrs[index] = cuCmulf( samples[index], cuConjf( samples_d16[index] ) );
       conj_sqrs[index + 1] = cuCmulf( samples[index + 1], cuConjf( samples_d16[index + 1] ) );
    }
@@ -81,14 +81,14 @@ void calc_conj_sqr_means2(
       const int num_vals 
    ) { 
 
-   int global_index = blockDim.x * blockIdx.x + threadIdx.x;
+   int global_index = 2*(blockDim.x * blockIdx.x + threadIdx.x);
    int stride = blockDim.x * gridDim.x;
 
-   for (int index = global_index; index < num_vals/2; index += stride) {
+   for (int index = global_index; index < num_vals; index += stride) {
       cufftComplex t_conj_sqr_sum1 = make_cuFloatComplex(0.0,0.0);
       cufftComplex t_conj_sqr_sum2 = make_cuFloatComplex(0.0,0.0);
 
-      for( int w_index = 0; w_index < conj_sqr_window_size/2; w_index+=2 ) {
+      for( int w_index = 0; w_index < conj_sqr_window_size; ++w_index ) {
          t_conj_sqr_sum1 = cuCaddf( t_conj_sqr_sum1, conj_sqrs[index + w_index] );
          t_conj_sqr_sum2 = cuCaddf( t_conj_sqr_sum2, conj_sqrs[index + w_index + 1] );
       }
@@ -261,19 +261,19 @@ void norm_autocorr_kernel(
       num_conj_sqr_sums );
    __syncthreads();
 
-   calc_conj_sqr_mean_mags2( conj_sqr_mean_mags, conj_sqr_means, 
+   calc_conj_sqr_mean_mags( conj_sqr_mean_mags, conj_sqr_means, 
       num_conj_sqr_sums );
    __syncthreads();
 
-   calc_mag_sqrs2( mag_sqrs, samples, num_samples );
+   calc_mag_sqrs( mag_sqrs, samples, num_samples );
    __syncthreads();
 
-   calc_mag_sqr_means2( 
+   calc_mag_sqr_means( 
       mag_sqr_means, 
       mag_sqrs,
       mag_sqr_window_size, 
       num_mag_sqr_sums );
    __syncthreads();
    
-   normalize2( norms, conj_sqr_mean_mags, mag_sqr_means, num_samples );
+   normalize( norms, conj_sqr_mean_mags, mag_sqr_means, num_samples );
 }
