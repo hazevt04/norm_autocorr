@@ -36,8 +36,8 @@ void NormAutocorrGPU::run() {
       float gpu_milliseconds = 0.f;
       Time_Point start = Steady_Clock::now();
       
-      //try_cuda_func( cerror, cudaMemcpyAsync( d_samples.data(), samples.data(), adjusted_num_sample_bytes,
-               //cudaMemcpyHostToDevice, *(stream_ptr.get()) ) );
+      try_cuda_func( cerror, cudaMemcpyAsync( d_samples, samples.data(), adjusted_num_sample_bytes,
+               cudaMemcpyHostToDevice, *(stream_ptr.get()) ) );
 
       norm_autocorr_kernel<<<num_blocks, threads_per_block, num_shared_bytes, *(stream_ptr.get())>>>( 
          d_norms, 
@@ -53,8 +53,8 @@ void NormAutocorrGPU::run() {
          num_samples 
       );
 
-      //try_cuda_func( cerror, cudaMemcpyAsync( norms.data(), d_norms.data(), adjusted_num_norm_bytes,
-               //cudaMemcpyDeviceToHost, *(stream_ptr.get()) ) );
+      try_cuda_func( cerror, cudaMemcpyAsync( norms.data(), d_norms, adjusted_num_norm_bytes,
+               cudaMemcpyDeviceToHost, *(stream_ptr.get()) ) );
       
       try_cuda_func_throw( cerror, cudaDeviceSynchronize() );
       
