@@ -109,15 +109,13 @@ public:
          
          initialize_samples();
 
-         
-
-         std::fill( samples_d16.begin(), samples_d16.end(), make_cuFloatComplex(0.f,0.f) );
-         std::fill( conj_sqrs.begin(), conj_sqrs.end(), make_cuFloatComplex(0.f,0.f) );
-         std::fill( conj_sqr_means.begin(), conj_sqr_means.end(), make_cuFloatComplex(0.f,0.f) );
-         std::fill( conj_sqr_mean_mags.begin(), conj_sqr_mean_mags.end(), 0 );
-         std::fill( mag_sqrs.begin(), mag_sqrs.end(), 0 );
-         std::fill( mag_sqr_means.begin(), mag_sqr_means.end(), 0 );
-         std::fill( norms.begin(), norms.end(), 0 );
+         //std::fill( samples_d16.begin(), samples_d16.end(), make_cuFloatComplex(0.f,0.f) );
+         //std::fill( conj_sqrs.begin(), conj_sqrs.end(), make_cuFloatComplex(0.f,0.f) );
+         //std::fill( conj_sqr_means.begin(), conj_sqr_means.end(), make_cuFloatComplex(0.f,0.f) );
+         //std::fill( conj_sqr_mean_mags.begin(), conj_sqr_mean_mags.end(), 0 );
+         //std::fill( mag_sqrs.begin(), mag_sqrs.end(), 0 );
+         //std::fill( mag_sqr_means.begin(), mag_sqr_means.end(), 0 );
+         //std::fill( norms.begin(), norms.end(), 0 );
 
          stream_ptr = my_make_unique<cudaStream_t>();
          try_cudaStreamCreate( stream_ptr.get() );
