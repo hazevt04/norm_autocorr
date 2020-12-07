@@ -7,12 +7,12 @@
 #include "my_args.hpp"
 
 #include "my_cuda_utils.hpp"
-#include "pinned_vec_file_io_funcs.hpp"
+#include "pinned_mapped_vec_file_io_funcs.hpp"
 
 #include "norm_autocorr_kernel.cuh"
 
 #include "device_allocator.hpp"
-#include "pinned_allocator.hpp"
+#include "pinned_mapped_allocator.hpp"
 
 constexpr float PI = 3.1415926535897238463f;
 constexpr float FREQ = 1000.f;
@@ -68,16 +68,19 @@ public:
 
          samples.reserve( adjusted_num_samples );
          
-         d_samples.reserve( adjusted_num_samples );
+         //d_samples.reserve( adjusted_num_samples );
          samples_d16.reserve( adjusted_num_samples );
          conj_sqrs.reserve( adjusted_num_samples );
          conj_sqr_means.reserve( adjusted_num_samples );
          conj_sqr_mean_mags.reserve( adjusted_num_samples );
          mag_sqrs.reserve( adjusted_num_samples );
          mag_sqr_means.reserve( adjusted_num_samples );
-         d_norms.reserve( adjusted_num_samples );
+         //d_norms.reserve( adjusted_num_samples );
          
          norms.reserve( adjusted_num_samples );
+
+         try_cuda_func_throw( cerror, cudaHostGetDevicePointer( &d_samples, samples.data(), 0 ) );
+         try_cuda_func_throw( cerror, cudaHostGetDevicePointer( &d_norms, norms.data(), 0 ) );
 
          //samples_d16.resize(adjusted_num_samples);
          //conj_sqrs.resize(adjusted_num_samples);
@@ -184,7 +187,6 @@ public:
 
    ~NormAutocorrGPU() {
       dout << "dtor called\n";
-      d_samples.clear();    
       samples.clear();    
       samples_d16.clear();
       conj_sqrs.clear();
@@ -193,7 +195,6 @@ public:
       mag_sqrs.clear();
       mag_sqr_means.clear();
       norms.clear();
-      d_norms.clear();
 
       delete [] exp_samples_d16;
       if ( exp_conj_sqrs ) delete [] exp_conj_sqrs;
@@ -236,17 +237,18 @@ private:
    void calc_exp_conj_sqr_means();
    void calc_exp_mag_sqr_means();
 
-   pinned_vector<cufftComplex> samples;
-   device_vector<cufftComplex> d_samples;
+   pinned_mapped_vector<cufftComplex> samples;
+   //device_vector<cufftComplex> d_samples;
    device_vector<cufftComplex> samples_d16;
    device_vector<cufftComplex> conj_sqrs;
    device_vector<cufftComplex> conj_sqr_means;
    device_vector<float> conj_sqr_mean_mags;
    device_vector<float> mag_sqrs;
    device_vector<float> mag_sqr_means;
-   device_vector<float> d_norms;
-   pinned_vector<float> norms;
+   //device_vector<float> d_norms;
+   pinned_mapped_vector<float> norms;
 
+   cufftComplex* d_samples;
    cufftComplex* exp_samples_d16;
    cufftComplex* exp_conj_sqrs;
    cufftComplex* exp_conj_sqr_means;
@@ -254,6 +256,7 @@ private:
    float* exp_mag_sqrs;
    float* exp_mag_sqr_means;
    float* exp_norms;
+   float* d_norms;
 
    std::string test_select_string;
    std::string filename = default_filename;

@@ -232,6 +232,8 @@ void normalize2( float* __restrict__ norms, const float* __restrict__ conj_sqr_m
       }
    }
 }
+
+
 __global__
 void norm_autocorr_kernel( 
    float* __restrict__ norms, 
