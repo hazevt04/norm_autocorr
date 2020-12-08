@@ -7,12 +7,15 @@
 #include "my_args.hpp"
 
 #include "my_cuda_utils.hpp"
-#include "pinned_mapped_vec_file_io_funcs.hpp"
+//#include "pinned_mapped_vec_file_io_funcs.hpp"
+#include "man_vec_file_io_funcs.hpp"
 
 #include "norm_autocorr_kernel.cuh"
 
 #include "device_allocator.hpp"
-#include "pinned_mapped_allocator.hpp"
+#include "managed_allocator_global.hpp"
+#include "managed_allocator_host.hpp"
+//#include "pinned_mapped_allocator.hpp"
 
 constexpr float PI = 3.1415926535897238463f;
 constexpr float FREQ = 1000.f;
@@ -83,10 +86,16 @@ public:
          mag_sqr_means.reserve( adjusted_num_samples );
          norms.reserve( adjusted_num_samples );
 
-         //d_samples.reserve( adjusted_num_samples );
-         //d_norms.reserve( adjusted_num_samples );
-         try_cuda_func_throw( cerror, cudaHostGetDevicePointer( &d_samples, samples.data(), 0 ) );
-         try_cuda_func_throw( cerror, cudaHostGetDevicePointer( &d_norms, norms.data(), 0 ) );
+         std::fill( samples_d16.begin(), samples_d16.end(), make_cuFloat( 0.f, 0.f ) );
+         std::fill( conj_sqrs.begin(), conj_sqrs.end(), make_cuFloat( 0.f, 0.f ) );
+         std::fill( conj_sqr_means.begin(), conj_sqr_means.end(), make_cuFloat( 0.f, 0.f ) );
+         std::fill( conj_sqr_mean_mags.begin(), conj_sqr_mean_mags.end(), 0.f );
+         std::fill( mag_sqrs.begin(), mag_sqrs.end(), 0.f );
+         std::fill( mag_sqr_means.begin(), mag_sqr_means.end(), 0.f );
+         std::fill( norms.begin(), norms.end(), 0.f );
+
+         //try_cuda_func_throw( cerror, cudaHostGetDevicePointer( &d_samples, samples.data(), 0 ) );
+         //try_cuda_func_throw( cerror, cudaHostGetDevicePointer( &d_norms, norms.data(), 0 ) );
          
          exp_samples_d16 = new cufftComplex[num_samples];
          exp_conj_sqrs = new cufftComplex[num_samples];
@@ -101,6 +110,8 @@ public:
             exp_samples_d16[index] = make_cuFloatComplex(0.f,0.f);
             exp_conj_sqrs[index] =  make_cuFloatComplex(0.f,0.f);
             exp_conj_sqr_means[index] = make_cuFloatComplex(0.f,0.f);
+            exp_conj_sqr_mean_mags[index] = make_cuFloatComplex(0.f,0.f);
+            exp_mag_sqrs[index] = 0.f;
             exp_mag_sqr_means[index] = 0.f;
          } 
 
@@ -108,14 +119,6 @@ public:
          norms.resize(adjusted_num_samples);
          
          initialize_samples();
-
-         //std::fill( samples_d16.begin(), samples_d16.end(), make_cuFloatComplex(0.f,0.f) );
-         //std::fill( conj_sqrs.begin(), conj_sqrs.end(), make_cuFloatComplex(0.f,0.f) );
-         //std::fill( conj_sqr_means.begin(), conj_sqr_means.end(), make_cuFloatComplex(0.f,0.f) );
-         //std::fill( conj_sqr_mean_mags.begin(), conj_sqr_mean_mags.end(), 0 );
-         //std::fill( mag_sqrs.begin(), mag_sqrs.end(), 0 );
-         //std::fill( mag_sqr_means.begin(), mag_sqr_means.end(), 0 );
-         //std::fill( norms.begin(), norms.end(), 0 );
 
          stream_ptr = my_make_unique<cudaStream_t>();
          try_cudaStreamCreate( stream_ptr.get() );
@@ -237,19 +240,17 @@ private:
    void calc_exp_conj_sqr_means();
    void calc_exp_mag_sqr_means();
 
-   pinned_mapped_vector<cufftComplex> samples;
-   device_vector<cufftComplex> samples_d16;
-   device_vector<cufftComplex> conj_sqrs;
-   device_vector<cufftComplex> conj_sqr_means;
-   device_vector<float> conj_sqr_mean_mags;
-   device_vector<float> mag_sqrs;
-   device_vector<float> mag_sqr_means;
-   pinned_mapped_vector<float> norms;
+   managed_vector_host<cufftComplex> samples;
+   managed_vector_global<cufftComplex> samples_d16;
+   managed_vector_global<cufftComplex> conj_sqrs;
+   managed_vector_global<cufftComplex> conj_sqr_means;
+   managed_vector_global<float> conj_sqr_mean_mags;
+   managed_vector_global<float> mag_sqrs;
+   managed_vector_global<float> mag_sqr_means;
+   managed_vector_host<float> norms;
 
-   cufftComplex* d_samples;
-   float* d_norms;
-   //device_vector<cufftComplex> d_samples;
-   //device_vector<float> d_norms;
+   //cufftComplex* d_samples;
+   //float* d_norms;
 
    cufftComplex* exp_samples_d16;
    cufftComplex* exp_conj_sqrs;
