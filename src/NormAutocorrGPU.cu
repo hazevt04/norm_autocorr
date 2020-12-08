@@ -39,8 +39,8 @@ void NormAutocorrGPU::run() {
       Time_Point start = Steady_Clock::now();
       
       //try_cuda_func_throw( cerror, cudaStreamAttachMemAsync( *(stream_ptr.get()), samples.data(), 0, cudaMemAttachGlobal ) );
-      try_cuda_func_throw( cerror, cudaMemPrefetchAsync( samples.data(), adjusted_num_sample_bytes, 
-         device_id, *(stream_ptr.get()) ) );
+      //try_cuda_func_throw( cerror, cudaMemPrefetchAsync( samples.data(), adjusted_num_sample_bytes, 
+      //   device_id, *(stream_ptr.get()) ) );
 
       norm_autocorr_kernel<<<num_blocks, threads_per_block, num_shared_bytes, *(stream_ptr.get())>>>( 
          norms.data(), 
@@ -57,8 +57,8 @@ void NormAutocorrGPU::run() {
       );
 
       //try_cuda_func_throw( cerror, cudaStreamAttachMemAsync( *(stream_ptr.get()), norms.data(), 0, cudaMemAttachHost ) );
-      try_cuda_func_throw( cerror, cudaMemPrefetchAsync( norms.data(), adjusted_num_norm_bytes, 
-         device_id, *(stream_ptr.get()) ) );
+      //try_cuda_func_throw( cerror, cudaMemPrefetchAsync( norms.data(), adjusted_num_norm_bytes, 
+      //   device_id, *(stream_ptr.get()) ) );
       
       try_cuda_func_throw( cerror, cudaDeviceSynchronize() );
       
@@ -67,10 +67,52 @@ void NormAutocorrGPU::run() {
 
       float max_diff = 1;
       bool all_close = false;
-      if ( debug ) {
-         print_results( "Norms: " );
-         std::cout << "\n"; 
+      
+      dout << __func__ << "(): conj sqrs Check:\n";
+      all_close = cufftComplexes_are_close( conj_sqrs.data(), exp_conj_sqrs, 
+         num_samples, max_diff, "conj sqrs: ", debug );
+      dout << "\n";
+      if (!all_close) {
+         throw std::runtime_error{ std::string{__func__} + 
+            std::string{"(): Mismatch between actual conj_sqrs from GPU and expected conj_sqrs."} };
       }
+
+      dout << __func__ << "(): conj sqr means Check:\n";
+      all_close = cufftComplexes_are_close( conj_sqr_means.data(), exp_conj_sqr_means, 
+         num_samples, max_diff, "conj sqr means: ", debug );
+      dout << "\n";
+      if (!all_close) {
+         throw std::runtime_error{ std::string{__func__} + 
+            std::string{"(): Mismatch between actual conj_sqr_means from GPU and expected conj_sqr_means."} };
+      }
+
+      dout << __func__ << "(): conj sqr mean mags Check:\n";
+      all_close = vals_are_close( conj_sqr_mean_mags.data(), exp_conj_sqr_mean_mags, 
+         num_samples, max_diff, "conj sqr mean mags: ", debug );
+      dout << "\n";
+      if (!all_close) {
+         throw std::runtime_error{ std::string{__func__} + 
+            std::string{"(): Mismatch between actual conj_sqr_mean_mags from GPU and expected conj_sqr_mean_mags."} };
+      }
+
+      dout << __func__ << "(): mag sqrs Check:\n";
+      all_close = vals_are_close( mag_sqrs.data(), exp_mag_sqrs, 
+         num_samples, max_diff, "mag sqrs: ", debug );
+      dout << "\n";
+      if (!all_close) {
+         throw std::runtime_error{ std::string{__func__} + 
+            std::string{"(): Mismatch between actual mag_sqrs from GPU and expected mag_sqrs."} };
+      }
+
+      dout << __func__ << "(): mag sqr means Check:\n";
+      all_close = vals_are_close( mag_sqr_means.data(), exp_mag_sqr_means, 
+         num_samples, max_diff, "mag sqr means: ", debug );
+      dout << "\n";
+      if (!all_close) {
+         throw std::runtime_error{ std::string{__func__} + 
+            std::string{"(): Mismatch between actual mag_sqr_means from GPU and expected mag_sqr_means."} };
+      }
+
       dout << __func__ << "(): norms Check:\n"; 
       all_close = vals_are_close( norms.data(), exp_norms, num_samples, max_diff, "norms: ", debug );
       if (!all_close) {
@@ -78,6 +120,11 @@ void NormAutocorrGPU::run() {
             std::string{"(): Mismatch between actual norms from GPU and expected norms."} };
       }
       dout << "\n"; 
+      
+      if ( debug ) {
+         print_results( "Norms: " );
+         std::cout << "\n"; 
+      }
       
       std::cout << "All " << num_samples << " Norm Values matched expected values. Test Passed.\n\n"; 
       std::cout << "It took the GPU " << gpu_milliseconds 

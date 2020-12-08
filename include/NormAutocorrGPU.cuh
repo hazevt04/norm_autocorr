@@ -7,13 +7,13 @@
 #include "my_args.hpp"
 
 #include "my_cuda_utils.hpp"
-#include "man_vec_file_io_funcs.hpp"
 
 #include "norm_autocorr_kernel.cuh"
 
-#include "device_allocator.hpp"
-#include "managed_allocator_host.hpp"
-#include "managed_allocator_global.hpp"
+//#include "device_allocator.hpp"
+//#include "managed_allocator_host.hpp"
+//#include "managed_allocator_global.hpp"
+#include "man_vec_file_io_funcs.hpp"
 
 constexpr float PI = 3.1415926535897238463f;
 constexpr float FREQ = 1000.f;
@@ -101,19 +101,19 @@ public:
          
          initialize_samples();
 
-         try_cuda_func_throw( cerror, cudaMemset( samples_d16.data(), adjusted_num_sample_bytes, 0 ) );
-         try_cuda_func_throw( cerror, cudaMemset( conj_sqrs.data(), adjusted_num_sample_bytes, 0 ) );
-         try_cuda_func_throw( cerror, cudaMemset( conj_sqr_means.data(), adjusted_num_sample_bytes, 0 ) );
-         try_cuda_func_throw( cerror, cudaMemset( conj_sqr_mean_mags.data(), adjusted_num_norm_bytes, 0 ) );
-         try_cuda_func_throw( cerror, cudaMemset( mag_sqrs.data(), adjusted_num_norm_bytes, 0 ) );
-         try_cuda_func_throw( cerror, cudaMemset( mag_sqr_means.data(), adjusted_num_norm_bytes, 0 ) );
+         //try_cuda_func_throw( cerror, cudaMemset( samples_d16.data(), adjusted_num_sample_bytes, 0 ) );
+         //try_cuda_func_throw( cerror, cudaMemset( conj_sqrs.data(), adjusted_num_sample_bytes, 0 ) );
+         //try_cuda_func_throw( cerror, cudaMemset( conj_sqr_means.data(), adjusted_num_sample_bytes, 0 ) );
+         //try_cuda_func_throw( cerror, cudaMemset( conj_sqr_mean_mags.data(), adjusted_num_norm_bytes, 0 ) );
+         //try_cuda_func_throw( cerror, cudaMemset( mag_sqrs.data(), adjusted_num_norm_bytes, 0 ) );
+         //try_cuda_func_throw( cerror, cudaMemset( mag_sqr_means.data(), adjusted_num_norm_bytes, 0 ) );
 
-         //std::fill( samples_d16.begin(), samples_d16.end(), make_cuFloatComplex(0.f,0.f) );
-         //std::fill( conj_sqrs.begin(), conj_sqrs.end(), make_cuFloatComplex(0.f,0.f) );
-         //std::fill( conj_sqr_means.begin(), conj_sqr_means.end(), make_cuFloatComplex(0.f,0.f) );
-         //std::fill( conj_sqr_mean_mags.begin(), conj_sqr_mean_mags.end(), 0 );
-         //std::fill( mag_sqrs.begin(), mag_sqrs.end(), 0 );
-         //std::fill( mag_sqr_means.begin(), mag_sqr_means.end(), 0 );
+         std::fill( samples_d16.begin(), samples_d16.end(), make_cuFloatComplex(0.f,0.f) );
+         std::fill( conj_sqrs.begin(), conj_sqrs.end(), make_cuFloatComplex(0.f,0.f) );
+         std::fill( conj_sqr_means.begin(), conj_sqr_means.end(), make_cuFloatComplex(0.f,0.f) );
+         std::fill( conj_sqr_mean_mags.begin(), conj_sqr_mean_mags.end(), 0 );
+         std::fill( mag_sqrs.begin(), mag_sqrs.end(), 0 );
+         std::fill( mag_sqr_means.begin(), mag_sqr_means.end(), 0 );
 
          std::fill( norms.begin(), norms.end(), 0 );
 
@@ -237,12 +237,12 @@ private:
    void calc_exp_mag_sqr_means();
 
    managed_vector_host<cufftComplex> samples;
-   device_vector<cufftComplex> samples_d16;
-   device_vector<cufftComplex> conj_sqrs;
-   device_vector<cufftComplex> conj_sqr_means;
-   device_vector<float> conj_sqr_mean_mags;
-   device_vector<float> mag_sqrs;
-   device_vector<float> mag_sqr_means;
+   managed_vector_global<cufftComplex> samples_d16;
+   managed_vector_global<cufftComplex> conj_sqrs;
+   managed_vector_global<cufftComplex> conj_sqr_means;
+   managed_vector_global<float> conj_sqr_mean_mags;
+   managed_vector_global<float> mag_sqrs;
+   managed_vector_global<float> mag_sqr_means;
    managed_vector_global<float> norms;
 
    cufftComplex* exp_samples_d16;
