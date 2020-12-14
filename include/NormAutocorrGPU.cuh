@@ -68,7 +68,7 @@ public:
          dout << __func__ << "(): can_prefetch is " << (can_prefetch ? "true" : "false") << "\n";
          dout << __func__ << "(): can_map_memory is " << (can_map_memory ? "true" : "false") << "\n";
          dout << __func__ << "(): gpu_is_integrated is " << (gpu_is_integrated ? "true" : "false") << "\n";
-         
+
          stream_ptr = my_make_unique<cudaStream_t>();
          try_cudaStreamCreate( stream_ptr.get() );
          dout << __func__ << "(): after cudaStreamCreate()\n"; 
