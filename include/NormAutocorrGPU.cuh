@@ -21,7 +21,8 @@ constexpr float FREQ = 1000.f;
 constexpr float AMPLITUDE = 50.f;
 constexpr int threads_per_block = 1024;
 
-const std::string default_filename = "/home/glenn/Sandbox/CUDA/norm_autocorr/input_samples.5.9GHz.10MHzBW.560u.LS.dat"; 
+const std::string default_filename = "input_samples.5.9GHz.10MHzBW.560u.LS.dat"; 
+const std::string default_norm_filename = "norm_autocorr.5.9GHz.10MHzBW.560u.LS.dat"; 
 
 class NormAutocorrGPU {
 public:
@@ -113,6 +114,20 @@ public:
 
          initialize_samples();
 
+         char* user_env = getenv( "USER" );
+         if ( user_env == nullptr ) {
+            throw std::runtime_error( std::string{__func__} + 
+               "(): Empty USER env. USER environment variable needed for paths to files" ); 
+         }
+         
+         std::string filepath_prefix = "/home/" + std::string{user_env} + "/Sandbox/CUDA/norm_autocorr/";
+
+         filepath = filepath_prefix + filename;
+         norm_filepath = filepath_prefix + norm_filename;
+
+         std::cout << "Filepath is " << filepath << "\n";
+         std::cout << "Norm Filepath is " << norm_filepath << "\n";
+
       } catch( std::exception& ex ) {
          throw std::runtime_error{
             std::string{__func__} + std::string{"(): "} + ex.what()
@@ -154,7 +169,7 @@ public:
             dout << __func__ << "(): File-Based Sample Test Selected. File is " << filename << "\n";
             read_binary_file<cufftComplex>( 
                samples,
-               filename.c_str(),
+               filepath.c_str(),
                num_samples, 
                debug );
          } else {
@@ -254,7 +269,12 @@ private:
    float* exp_norms;
 
    std::string test_select_string;
+   
    std::string filename = default_filename;
+   std::string norm_filename = default_norm_filename;
+   
+   std::string filepath = "";
+   std::string norm_filepath = "";
 
    size_t num_sample_bytes = 32000;
    size_t adjusted_num_sample_bytes = 32768;

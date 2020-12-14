@@ -197,10 +197,6 @@ void NormAutocorrGPU::cpu_run() {
       std::cout << "It took the CPU " << cpu_milliseconds << " milliseconds to process " << num_samples << " samples\n";
       std::cout << "That's a rate of " << ((num_samples*1000.f)/cpu_milliseconds) << " samples processed per second\n\n"; 
 
-      float norms_from_file[num_samples];
-      read_binary_file<float>( norms_from_file, 
-            "/home/glenn/Sandbox/CUDA/norm_autocorr/norm_autocorr.5.9GHz.10MHzBW.560u.LS.dat", num_samples, debug );
-
    } catch( std::exception& ex ) {
       throw std::runtime_error( std::string{__func__} +  std::string{"(): "} + ex.what() ); 
    }
@@ -214,8 +210,7 @@ void NormAutocorrGPU::gen_expected_norms() {
 
       if ( test_select_string == "Filebased" ) {
          float norms_from_file[num_samples];
-         read_binary_file<float>( norms_from_file, 
-               "/home/glenn/Sandbox/CUDA/norm_autocorr/norm_autocorr.5.9GHz.10MHzBW.560u.LS.dat", num_samples, debug );
+         read_binary_file<float>( norms_from_file, norm_filepath.c_str(), num_samples, debug );
 
          float max_diff = 1.f;
          bool all_close = false;
