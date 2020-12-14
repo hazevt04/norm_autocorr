@@ -125,8 +125,8 @@ public:
          filepath = filepath_prefix + filename;
          norm_filepath = filepath_prefix + norm_filename;
 
-         std::cout << "Filepath is " << filepath << "\n";
-         std::cout << "Norm Filepath is " << norm_filepath << "\n";
+         dout << "Filepath is " << filepath << "\n";
+         dout << "Norm Filepath is " << norm_filepath << "\n";
 
       } catch( std::exception& ex ) {
          throw std::runtime_error{
