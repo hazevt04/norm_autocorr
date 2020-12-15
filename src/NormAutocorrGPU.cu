@@ -147,9 +147,9 @@ void NormAutocorrGPU::calc_exp_conj_sqr_means() {
       exp_conj_sqr_means[index] = cuCaddf( temp, exp_conj_sqrs[index + conj_sqrs_window_size-1] );
    } 
 
-   for( int index = 0; index < num_samples; ++index ) {
-      exp_conj_sqr_means[index] = complex_divide_by_scalar( exp_conj_sqr_means[index], (float)conj_sqrs_window_size );
-   } 
+   /*for( int index = 0; index < num_samples; ++index ) {*/
+   /*   exp_conj_sqr_means[index] = complex_divide_by_scalar( exp_conj_sqr_means[index], (float)conj_sqrs_window_size );*/
+   /*} */
 }
 
 
@@ -167,9 +167,9 @@ void NormAutocorrGPU::calc_exp_mag_sqr_means() {
       exp_mag_sqr_means[index] = exp_mag_sqr_means[index-1] - exp_mag_sqrs[index-1] + exp_mag_sqrs[index + mag_sqrs_window_size-1];
    } 
 
-   for( int index = 0; index  < num_samples; ++index ) {
-      exp_mag_sqr_means[index] = exp_mag_sqr_means[index]/(float)mag_sqrs_window_size;
-   } 
+   /*for( int index = 0; index  < num_samples; ++index ) {*/
+   /*   exp_mag_sqr_means[index] = exp_mag_sqr_means[index]/(float)mag_sqrs_window_size;*/
+   /*} */
 }
 
 void NormAutocorrGPU::cpu_run() {

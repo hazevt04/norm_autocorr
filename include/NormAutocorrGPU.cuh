@@ -100,6 +100,24 @@ public:
 
          samples.resize(adjusted_num_samples);
          
+         char* user_env = getenv( "USER" );
+         if ( user_env == nullptr ) {
+            throw std::runtime_error( std::string{__func__} + 
+               "(): Empty USER env. USER environment variable needed for paths to files" ); 
+         }
+         
+         std::string filepath_prefix = "/home/" + std::string{user_env} + "/Sandbox/CUDA/norm_autocorr/";
+
+         dout << __func__ << "(): filename is " << filename << "\n";
+         dout << __func__ << "(): norm_filename is " << norm_filename << "\n";
+
+         filepath = filepath_prefix + filename;
+         norm_filepath = filepath_prefix + norm_filename;
+
+         dout << __func__ << "(): filepath is " << filepath << "\n";
+         dout << __func__ << "(): norm_filepath is " << norm_filepath << "\n"; 
+         
+         // Needs filepath to be set
          initialize_samples();
 
          try_cuda_func_throw( cerror, cudaMemset( samples_d16.data(), adjusted_num_sample_bytes, 0 ) );
@@ -118,16 +136,7 @@ public:
 
          std::fill( norms.begin(), norms.end(), 0 );
 
-         char* user_env = getenv( "USER" );
-         if ( user_env == nullptr ) {
-            throw std::runtime_error( std::string{__func__} + 
-               "(): Empty USER env. USER environment variable needed for paths to files" ); 
-         }
-         
-         std::string filepath_prefix = "/home/" + std::string{user_env} + "/Sandbox/CUDA/norm_autocorr/";
 
-         filepath = filepath_prefix + filename;
-         norm_filepath = filepath_prefix + norm_filename;
 
       } catch( std::exception& ex ) {
          throw std::runtime_error{

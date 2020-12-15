@@ -55,7 +55,8 @@ void calc_conj_sqr_means(
       for( int w_index = 0; w_index < conj_sqr_window_size; ++w_index ) {
          t_conj_sqr_sum = cuCaddf( t_conj_sqr_sum, conj_sqrs[index + w_index] );
       }
-      conj_sqr_means[index] = complex_divide_by_scalar( t_conj_sqr_sum, (float)conj_sqr_window_size );
+      //conj_sqr_means[index] = complex_divide_by_scalar( t_conj_sqr_sum, (float)conj_sqr_window_size );
+      conj_sqr_means[index] = t_conj_sqr_sum;
    }
 
 }
@@ -101,7 +102,8 @@ void calc_mag_sqr_means(
       for( int w_index = 0; w_index < mag_sqr_window_size; ++w_index ) {
          t_mag_sqr_sum = t_mag_sqr_sum + mag_sqrs[index + w_index];
       }
-      mag_sqr_means[index] = t_mag_sqr_sum/(float)mag_sqr_window_size;
+      //mag_sqr_means[index] = t_mag_sqr_sum/(float)mag_sqr_window_size;
+      mag_sqr_means[index] = t_mag_sqr_sum;
    }
 
 }
