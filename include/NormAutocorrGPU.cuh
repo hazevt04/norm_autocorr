@@ -112,8 +112,6 @@ public:
             exp_norms[index] = 0.f;
          } 
 
-         initialize_samples();
-
          char* user_env = getenv( "USER" );
          if ( user_env == nullptr ) {
             throw std::runtime_error( std::string{__func__} + 
@@ -122,11 +120,16 @@ public:
          
          std::string filepath_prefix = "/home/" + std::string{user_env} + "/Sandbox/CUDA/norm_autocorr/";
 
+         dout << "Filename is " << filename << "\n";
+         dout << "Norm Filename is " << norm_filename << "\n";
+
          filepath = filepath_prefix + filename;
          norm_filepath = filepath_prefix + norm_filename;
 
          dout << "Filepath is " << filepath << "\n";
          dout << "Norm Filepath is " << norm_filepath << "\n";
+         
+         initialize_samples();
 
       } catch( std::exception& ex ) {
          throw std::runtime_error{

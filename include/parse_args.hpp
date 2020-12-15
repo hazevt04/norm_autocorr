@@ -22,7 +22,7 @@ void parse_args( my_args_t& my_args, int argc, char** argv ) {
          {"debug", no_argument, nullptr, 0}
       };
 
-      my_args.filename = "/home/glenn/Sandbox/CUDA/norm_autocorr/input_samples.5.9GHz.10MHzBW.560u.LS.dat";
+      my_args.filename = "input_samples.5.9GHz.10MHzBW.560u.LS.dat";
       while (true) {
 
          const auto opt = getopt_long( argc, argv, short_options,
