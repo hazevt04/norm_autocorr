@@ -3,6 +3,8 @@
 #include "my_cuda_utils.hpp"
 #include "my_cufft_utils.hpp"
 
+#define THREADS_PER_BLOCK 1024
+
 __device__ __host__ __inline__
 cufftComplex complex_divide_by_scalar( cufftComplex cval, float scalar_divisor ) {
    return make_cuFloatComplex( cval.x/scalar_divisor, cval.y/scalar_divisor );

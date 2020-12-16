@@ -39,6 +39,17 @@ void auto_correlation( cufftComplex* __restrict__ conj_sqrs, const cufftComplex*
 
 
 __device__
+void auto_correlations( cufftComplex* __restrict__ conj_sqrs, const cufftComplex* __restrict__ samples_d16,
+   const cufftComplex* __restrict__ samples, const int num_vals ) {
+
+   int thread_index = threadIdx.x;
+
+   printf( "%s(): blockIdx.x is %d. thread_index is %d\n", __func__, blockIdx.x, thread_index );
+   conj_sqrs[thread_index] = cuCmulf( samples[thread_index], cuConjf( samples_d16[thread_index] ) );
+}
+
+
+__device__
 void calc_conj_sqr_means( 
       cufftComplex* __restrict__ conj_sqr_means, 
       const cufftComplex* __restrict__ conj_sqrs, 
@@ -60,6 +71,34 @@ void calc_conj_sqr_means(
 
 }
 
+
+__device__
+void calc_conj_sqr_means_smem( 
+      cufftComplex* __restrict__ conj_sqr_means, 
+      const cufftComplex* __restrict__ conj_sqrs, 
+      const int conj_sqr_window_size, 
+      const int num_vals 
+   ) { 
+
+   int global_index = blockDim.x * blockIdx.x + threadIdx.x;
+   int thread_index = threadIdx.x;
+
+   if ( thread_index < (blockDim.x - conj_sqr_window_size)  ) {
+      //cufftComplex  t_conj_sqr_sum = make_cuFloatComplex(0.0,0.0);
+      conj_sqr_means[thread_index] = make_cuFloatComplex(0.0,0.0);
+
+      for( int w_index = 0; w_index < conj_sqr_window_size; ++w_index ) {
+         __syncthreads();
+         //t_conj_sqr_sum = cuCaddf( t_conj_sqr_sum, conj_sqrs[thread_index + w_index] );
+         conj_sqr_means[thread_index] = cuCaddf( conj_sqr_means[thread_index], conj_sqrs[thread_index + w_index] );
+      }
+      __syncthreads();
+      //conj_sqr_means[thread_index] = complex_divide_by_scalar( t_conj_sqr_sum, (float)conj_sqr_window_size );
+      conj_sqr_means[thread_index] = complex_divide_by_scalar( conj_sqr_means[thread_index], (float)conj_sqr_window_size );
+   }
+}
+
+
 __device__
 void calc_conj_sqr_mean_mags( float* __restrict__ conj_sqr_mean_mags, const cufftComplex* __restrict__ conj_sqr_means, const int num_vals ) {
 
@@ -73,6 +112,15 @@ void calc_conj_sqr_mean_mags( float* __restrict__ conj_sqr_mean_mags, const cuff
 
 
 __device__
+void calc_conj_sqr_mean_magss( float* __restrict__ conj_sqr_mean_mags, const cufftComplex* __restrict__ conj_sqr_means, const int num_vals ) {
+
+   int thread_index = threadIdx.x;
+
+   conj_sqr_mean_mags[thread_index] = cuCabsf( conj_sqr_means[thread_index] );
+}
+
+
+__device__
 void calc_mag_sqrs( float* __restrict__ mag_sqrs, const cufftComplex* __restrict__ samples, const int num_vals ) {
 
    int global_index = blockDim.x * blockIdx.x + threadIdx.x;
@@ -82,6 +130,16 @@ void calc_mag_sqrs( float* __restrict__ mag_sqrs, const cufftComplex* __restrict
       float temp = cuCabsf( samples[index] );
       mag_sqrs[index] = temp * temp;
    }
+}
+
+
+__device__
+void calc_mag_sqrss( float* __restrict__ mag_sqrs, const cufftComplex* __restrict__ samples, const int num_vals ) {
+
+   int thread_index = threadIdx.x;
+
+   float temp = cuCabsf( samples[thread_index] );
+   mag_sqrs[thread_index] = temp * temp;
 }
 
 
@@ -121,8 +179,22 @@ void normalize( float* __restrict__ norms, const float* __restrict__ conj_sqr_me
          norms[index] = 0.f;
       }
    }
-
 }
+
+
+__device__
+void normalizes( float* __restrict__ norms, const float* __restrict__ conj_sqr_mean_mags, 
+   const float* __restrict__ mag_sqr_means, const int num_samples ) {
+
+   int thread_index = threadIdx.x;
+
+   if ( mag_sqr_means[thread_index] > 0.f ) {
+      norms[thread_index] =  conj_sqr_mean_mags[thread_index]/mag_sqr_means[thread_index];
+   } else {
+      norms[thread_index] = 0.f;
+   }
+}
+
 
 __global__
 void norm_autocorr_kernel( 
@@ -141,31 +213,21 @@ void norm_autocorr_kernel(
    int num_conj_sqr_sums = num_samples - conj_sqr_window_size;
    int num_mag_sqr_sums = num_samples - mag_sqr_window_size;
 
+   __shared__ cufftComplex s_samples[THREADS_PER_BLOCK];
+   __shared__ cufftComplex s_samples_d16[THREADS_PER_BLOCK];
+   __shared__ cufftComplex s_conj_sqrs[THREADS_PER_BLOCK];
+   __shared__ cufftComplex s_conj_sqr_means[THREADS_PER_BLOCK];
+   __shared__ float s_conj_sqr_mean_mags[THREADS_PER_BLOCK];
+   __shared__ float s_mag_sqrs[THREADS_PER_BLOCK];
+   __shared__ float s_mag_sqr_means[THREADS_PER_BLOCK];
+   __shared__ float s_norms[THREADS_PER_BLOCK];
+
+   int global_index = blockDim.x * blockIdx.x + threadIdx.x;
+   int thread_index = threadIdx.x;
+
    delay16<cufftComplex>( samples_d16, samples, num_samples );
    __syncthreads();
-   auto_correlation( conj_sqrs, samples_d16, samples, num_samples );
-   __syncthreads();
+
    
-   calc_conj_sqr_means( 
-      conj_sqr_means, 
-      conj_sqrs, 
-      conj_sqr_window_size, 
-      num_conj_sqr_sums );
-   __syncthreads();
-
-   calc_conj_sqr_mean_mags( conj_sqr_mean_mags, conj_sqr_means, 
-      num_conj_sqr_sums );
-   __syncthreads();
-
-   calc_mag_sqrs( mag_sqrs, samples, num_samples );
-   __syncthreads();
-
-   calc_mag_sqr_means( 
-      mag_sqr_means, 
-      mag_sqrs,
-      mag_sqr_window_size, 
-      num_mag_sqr_sums );
-   __syncthreads();
-   
-   normalize( norms, conj_sqr_mean_mags, mag_sqr_means, num_samples );
 }
+
