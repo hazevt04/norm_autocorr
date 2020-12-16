@@ -75,10 +75,10 @@ public:
          d_samples.reserve( adjusted_num_samples );
          samples_d16.reserve( adjusted_num_samples );
          conj_sqrs.reserve( adjusted_num_samples );
-         conj_sqr_means.reserve( adjusted_num_samples );
-         conj_sqr_mean_mags.reserve( adjusted_num_samples );
+         conj_sqr_sums.reserve( adjusted_num_samples );
+         conj_sqr_sum_mags.reserve( adjusted_num_samples );
          mag_sqrs.reserve( adjusted_num_samples );
-         mag_sqr_means.reserve( adjusted_num_samples );
+         mag_sqr_sums.reserve( adjusted_num_samples );
          norms.reserve( adjusted_num_samples );
          d_norms.reserve( adjusted_num_samples );
          
@@ -88,27 +88,27 @@ public:
          //try_cuda_func_throw( cerror, cudaMemset( d_samples.data(), adjusted_num_sample_bytes, 0 ) );
          //try_cuda_func_throw( cerror, cudaMemset( samples_d16.data(), adjusted_num_sample_bytes, 0 ) );
          //try_cuda_func_throw( cerror, cudaMemset( conj_sqrs.data(), adjusted_num_sample_bytes, 0 ) );
-         //try_cuda_func_throw( cerror, cudaMemset( conj_sqr_means.data(), adjusted_num_sample_bytes, 0 ) );
-         //try_cuda_func_throw( cerror, cudaMemset( conj_sqr_mean_mags.data(), adjusted_num_sample_bytes, 0 ) );
+         //try_cuda_func_throw( cerror, cudaMemset( conj_sqr_sums.data(), adjusted_num_sample_bytes, 0 ) );
+         //try_cuda_func_throw( cerror, cudaMemset( conj_sqr_sum_mags.data(), adjusted_num_sample_bytes, 0 ) );
          //try_cuda_func_throw( cerror, cudaMemset( mag_sqrs.data(), adjusted_num_norm_bytes, 0 ) );
-         //try_cuda_func_throw( cerror, cudaMemset( mag_sqr_means.data(), adjusted_num_norm_bytes, 0 ) );
+         //try_cuda_func_throw( cerror, cudaMemset( mag_sqr_sums.data(), adjusted_num_norm_bytes, 0 ) );
          //try_cuda_func_throw( cerror, cudaMemset( d_norms.data(), adjusted_num_norm_bytes, 0 ) );
 
          exp_samples_d16 = new cufftComplex[num_samples];
          exp_conj_sqrs = new cufftComplex[num_samples];
-         exp_conj_sqr_means = new cufftComplex[num_samples];
-         exp_conj_sqr_mean_mags = new float[num_samples];
+         exp_conj_sqr_sums = new cufftComplex[num_samples];
+         exp_conj_sqr_sum_mags = new float[num_samples];
          exp_mag_sqrs = new float[num_samples];
-         exp_mag_sqr_means = new float[num_samples];
+         exp_mag_sqr_sums = new float[num_samples];
          exp_norms = new float[num_samples];
 
          for( int index = 0; index < num_samples; ++index ) {
 
             exp_samples_d16[index] = make_cuFloatComplex(0.f,0.f);
             exp_conj_sqrs[index] =  make_cuFloatComplex(0.f,0.f);
-            exp_conj_sqr_means[index] = make_cuFloatComplex(0.f,0.f);
+            exp_conj_sqr_sums[index] = make_cuFloatComplex(0.f,0.f);
             exp_mag_sqrs[index] = 0.f;
-            exp_mag_sqr_means[index] = 0.f;
+            exp_mag_sqr_sums[index] = 0.f;
             exp_norms[index] = 0.f;
          } 
 
@@ -204,19 +204,19 @@ public:
       samples.clear();    
       samples_d16.clear();
       conj_sqrs.clear();
-      conj_sqr_means.clear();
-      conj_sqr_mean_mags.clear();
+      conj_sqr_sums.clear();
+      conj_sqr_sum_mags.clear();
       mag_sqrs.clear();
-      mag_sqr_means.clear();
+      mag_sqr_sums.clear();
       norms.clear();
       d_norms.clear();
 
       delete [] exp_samples_d16;
       if ( exp_conj_sqrs ) delete [] exp_conj_sqrs;
-      if ( exp_conj_sqr_means ) delete [] exp_conj_sqr_means;
-      if ( exp_conj_sqr_mean_mags ) delete [] exp_conj_sqr_mean_mags;
+      if ( exp_conj_sqr_sums ) delete [] exp_conj_sqr_sums;
+      if ( exp_conj_sqr_sum_mags ) delete [] exp_conj_sqr_sum_mags;
       if ( exp_mag_sqrs ) delete [] exp_mag_sqrs;
-      if ( exp_mag_sqr_means ) delete [] exp_mag_sqr_means;
+      if ( exp_mag_sqr_sums ) delete [] exp_mag_sqr_sums;
       if ( exp_norms ) delete [] exp_norms;
 
       if ( stream_ptr ) cudaStreamDestroy( *(stream_ptr.get()) );
@@ -249,26 +249,26 @@ private:
    void calc_mags();
    void calc_complex_mag_squares(); 
    void calc_auto_corrs();
-   void calc_exp_conj_sqr_means();
-   void calc_exp_mag_sqr_means();
+   void calc_exp_conj_sqr_sums();
+   void calc_exp_mag_sqr_sums();
 
    pinned_vector<cufftComplex> samples;
    device_vector<cufftComplex> d_samples;
    device_vector<cufftComplex> samples_d16;
    device_vector<cufftComplex> conj_sqrs;
-   device_vector<cufftComplex> conj_sqr_means;
-   device_vector<float> conj_sqr_mean_mags;
+   device_vector<cufftComplex> conj_sqr_sums;
+   device_vector<float> conj_sqr_sum_mags;
    device_vector<float> mag_sqrs;
-   device_vector<float> mag_sqr_means;
+   device_vector<float> mag_sqr_sums;
    device_vector<float> d_norms;
    pinned_vector<float> norms;
 
    cufftComplex* exp_samples_d16;
    cufftComplex* exp_conj_sqrs;
-   cufftComplex* exp_conj_sqr_means;
-   float* exp_conj_sqr_mean_mags;
+   cufftComplex* exp_conj_sqr_sums;
+   float* exp_conj_sqr_sum_mags;
    float* exp_mag_sqrs;
-   float* exp_mag_sqr_means;
+   float* exp_mag_sqr_sums;
    float* exp_norms;
 
    std::string test_select_string;

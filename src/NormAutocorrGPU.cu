@@ -26,10 +26,10 @@ void NormAutocorrGPU::run() {
       if ( debug ) {
          print_cufftComplexes( exp_samples_d16, num_samples, "Expected Samples D16: ", " ", "\n" ); 
          print_cufftComplexes( exp_conj_sqrs, num_samples, "Expected Conjugate Squares: ", " ", "\n" );
-         print_cufftComplexes( exp_conj_sqr_means, num_samples, "Expected Conjugate Square Means: ", " ", "\n" );
-         print_vals( exp_conj_sqr_mean_mags, num_samples, "Expected Conjugate Square Mean Mags: ", " ", "\n" ); 
+         print_cufftComplexes( exp_conj_sqr_sums, num_samples, "Expected Conjugate Square Means: ", " ", "\n" );
+         print_vals( exp_conj_sqr_sum_mags, num_samples, "Expected Conjugate Square Mean Mags: ", " ", "\n" ); 
          print_vals( exp_mag_sqrs, num_samples, "Expected Magnitude Squares: ", " ", "\n" ); 
-         print_vals( exp_mag_sqr_means, num_samples, "Expected Magnitude Square Means: ", " ", "\n" );
+         print_vals( exp_mag_sqr_sums, num_samples, "Expected Magnitude Square Means: ", " ", "\n" );
          print_vals( exp_norms, num_samples, "Expected Norms: ", " ", "\n" ); 
       }
       
@@ -41,10 +41,10 @@ void NormAutocorrGPU::run() {
 
       norm_autocorr_kernel<<<num_blocks, threads_per_block, num_shared_bytes, *(stream_ptr.get())>>>( 
          d_norms.data(), 
-         mag_sqr_means.data(), 
+         mag_sqr_sums.data(), 
          mag_sqrs.data(), 
-         conj_sqr_mean_mags.data(), 
-         conj_sqr_means.data(), 
+         conj_sqr_sum_mags.data(), 
+         conj_sqr_sums.data(), 
          conj_sqrs.data(), 
          samples_d16.data(), 
          d_samples.data(),
@@ -92,8 +92,8 @@ void NormAutocorrGPU::run() {
 void NormAutocorrGPU::calc_norms() {
    
    for( int index = 0; index < num_samples; ++index ) {
-      if ( exp_mag_sqr_means[index] > 0 ) {
-         exp_norms[index] = exp_conj_sqr_mean_mags[index]/exp_mag_sqr_means[index];
+      if ( exp_mag_sqr_sums[index] > 0 ) {
+         exp_norms[index] = exp_conj_sqr_sum_mags[index]/exp_mag_sqr_sums[index];
       } else {
          exp_norms[index] = 0.f;
       }
@@ -105,7 +105,7 @@ void NormAutocorrGPU::calc_norms() {
 void NormAutocorrGPU::calc_mags() {
    
    for( int index = 0; index < num_samples; ++index ) {
-      exp_conj_sqr_mean_mags[index] = cuCabsf( exp_conj_sqr_means[index] );
+      exp_conj_sqr_sum_mags[index] = cuCabsf( exp_conj_sqr_sums[index] );
    } 
 
 }
@@ -129,47 +129,42 @@ void NormAutocorrGPU::calc_auto_corrs() {
    dout << __func__ << "() end\n";
 }
 
-void NormAutocorrGPU::calc_exp_conj_sqr_means() {
+void NormAutocorrGPU::calc_exp_conj_sqr_sums() {
 
-   // exp_conj_sqr_means must already be all zeros
-   dout << __func__ << "(): exp_conj_sqr_means[0] = { " 
-      << exp_conj_sqr_means[0].x << ", " << exp_conj_sqr_means[0].y << " }\n"; 
+   // exp_conj_sqr_sums must already be all zeros
+   dout << __func__ << "(): exp_conj_sqr_sums[0] = { " 
+      << exp_conj_sqr_sums[0].x << ", " << exp_conj_sqr_sums[0].y << " }\n"; 
+
    for( int index = 0; index < conj_sqrs_window_size; ++index ) {
-      exp_conj_sqr_means[0] = cuCaddf( exp_conj_sqr_means[0], exp_conj_sqrs[index] );
+      exp_conj_sqr_sums[0] = cuCaddf( exp_conj_sqr_sums[0], exp_conj_sqrs[index] );
    }
-   dout << __func__ << "(): after initial summation, exp_conj_sqr_means[0] = { " 
-      << exp_conj_sqr_means[0].x << ", " << exp_conj_sqr_means[0].y << " }\n"; 
+   dout << __func__ << "(): after initial summation, exp_conj_sqr_sums[0] = { " 
+      << exp_conj_sqr_sums[0].x << ", " << exp_conj_sqr_sums[0].y << " }\n"; 
       
    int num_sums = num_samples - conj_sqrs_window_size;
    dout << __func__ << "(): num_sums is " << num_sums << "\n"; 
    for( int index = 1; index < num_sums; ++index ) {
-      cufftComplex temp = cuCsubf( exp_conj_sqr_means[index-1], exp_conj_sqrs[index-1] );
-      exp_conj_sqr_means[index] = cuCaddf( temp, exp_conj_sqrs[index + conj_sqrs_window_size-1] );
+      cufftComplex temp = cuCsubf( exp_conj_sqr_sums[index-1], exp_conj_sqrs[index-1] );
+      exp_conj_sqr_sums[index] = cuCaddf( temp, exp_conj_sqrs[index + conj_sqrs_window_size-1] );
    } 
 
-   /*for( int index = 0; index < num_samples; ++index ) {*/
-   /*   exp_conj_sqr_means[index] = complex_divide_by_scalar( exp_conj_sqr_means[index], (float)conj_sqrs_window_size );*/
-   /*} */
 }
 
 
-void NormAutocorrGPU::calc_exp_mag_sqr_means() {
+void NormAutocorrGPU::calc_exp_mag_sqr_sums() {
 
-   dout << __func__ << "(): exp_mag_sqr_means[0] = " << exp_mag_sqr_means[0] << "\n"; 
-   // exp_mag_sqr_means must already be all zeros
+   dout << __func__ << "(): exp_mag_sqr_sums[0] = " << exp_mag_sqr_sums[0] << "\n"; 
+   // exp_mag_sqr_sums must already be all zeros
    for( int index = 0; index < mag_sqrs_window_size; ++index ) {
-      exp_mag_sqr_means[0] = exp_mag_sqr_means[0] + exp_mag_sqrs[index];
+      exp_mag_sqr_sums[0] = exp_mag_sqr_sums[0] + exp_mag_sqrs[index];
    }
-   dout << __func__ << "(): After initial sum, exp_mag_sqr_means[0] = " << exp_mag_sqr_means[0] << "\n"; 
+   dout << __func__ << "(): After initial sum, exp_mag_sqr_sums[0] = " << exp_mag_sqr_sums[0] << "\n"; 
     
    int num_sums = num_samples - mag_sqrs_window_size;
    for( int index = 1; index < num_sums; ++index ) {
-      exp_mag_sqr_means[index] = exp_mag_sqr_means[index-1] - exp_mag_sqrs[index-1] + exp_mag_sqrs[index + mag_sqrs_window_size-1];
+      exp_mag_sqr_sums[index] = exp_mag_sqr_sums[index-1] - exp_mag_sqrs[index-1] + exp_mag_sqrs[index + mag_sqrs_window_size-1];
    } 
 
-   /*for( int index = 0; index  < num_samples; ++index ) {*/
-   /*   exp_mag_sqr_means[index] = exp_mag_sqr_means[index]/(float)mag_sqrs_window_size;*/
-   /*} */
 }
 
 
@@ -183,11 +178,11 @@ void NormAutocorrGPU::cpu_run() {
 
       delay_vals16();
       calc_auto_corrs();
-      calc_exp_conj_sqr_means();
+      calc_exp_conj_sqr_sums();
       calc_mags();
       
       calc_complex_mag_squares();
-      calc_exp_mag_sqr_means();
+      calc_exp_mag_sqr_sums();
       
       calc_norms();
 

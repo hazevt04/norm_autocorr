@@ -24,6 +24,10 @@ operator<<(std::basic_ostream<_CharT, _Traits>& __os, const cufftComplex& __c) {
     return __os << __s.str();
 }
 
+__device__ __host__ __inline__
+cufftComplex complex_divide_by_scalar( cufftComplex cval, float scalar_divisor ) {
+   return make_cuFloatComplex( cval.x/scalar_divisor, cval.y/scalar_divisor );
+}
 
 void gen_cufftComplexes( cufftComplex* complexes, const int num_complexes, const float lower, const float upper ); 
 
