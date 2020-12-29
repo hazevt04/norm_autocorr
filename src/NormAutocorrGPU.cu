@@ -1,16 +1,185 @@
-#include <cuda_runtime.h>
-
-#include "my_utils.hpp"
-#include "my_cuda_utils.hpp"
-#include "my_cufft_utils.hpp"
-
-#include "device_allocator.hpp"
-#include "managed_allocator_host.hpp"
-#include "managed_allocator_global.hpp"
 
 #include "NormAutocorrGPU.cuh"
 
 #include "norm_autocorr_kernel.cuh"
+
+#include "my_cufft_utils.hpp"
+#include "my_cuda_utils.hpp"
+#include "my_utils.hpp"
+
+NormAutocorrGPU::NormAutocorrGPU( 
+   const int new_num_samples, 
+   const int new_threads_per_block,
+   const int new_seed,
+   const mode_select_t new_mode_select,
+   const std::string new_filename,
+   const bool new_debug ):
+      num_samples( new_num_samples ),
+      threads_per_block( new_threads_per_block ),
+      seed( new_seed ),
+      mode_select( new_mode_select ),
+      filename( new_filename ),
+      debug( new_debug ) {
+
+   try {
+      cudaError_t cerror = cudaSuccess;
+      dout << __func__ << "(): num_samples is " << num_samples << "\n";
+
+      num_blocks = (num_samples + (threads_per_block-1))/threads_per_block;
+
+      adjusted_num_samples = threads_per_block * num_blocks;
+      dout << __func__ << "(): adjusted number of samples for allocation is " 
+         << adjusted_num_samples << "\n";
+
+      adjusted_num_sample_bytes = adjusted_num_samples * sizeof( cufftComplex );
+      adjusted_num_norm_bytes = adjusted_num_samples * sizeof( float );
+
+      try_cuda_func_throw( cerror, cudaGetDevice( &device_id ) );
+      
+      cudaDeviceProp props;
+      try_cuda_func_throw( cerror, cudaGetDeviceProperties(&props, device_id) );
+
+      can_prefetch = props.concurrentManagedAccess;
+      can_map_memory = props.canMapHostMemory;
+      gpu_is_integrated = props.integrated;
+
+      dout << __func__ << "(): can_prefetch is " << (can_prefetch ? "true" : "false") << "\n";
+      dout << __func__ << "(): can_map_memory is " << (can_map_memory ? "true" : "false") << "\n";
+      dout << __func__ << "(): gpu_is_integrated is " << (gpu_is_integrated ? "true" : "false") << "\n";
+
+      stream_ptr = my_make_unique<cudaStream_t>();
+      try_cudaStreamCreate( stream_ptr.get() );
+      dout << __func__ << "(): after cudaStreamCreate()\n"; 
+      
+      samples.reserve( adjusted_num_samples );
+      samples_d16.reserve( adjusted_num_samples );
+      conj_sqrs.reserve( adjusted_num_samples );
+      conj_sqr_means.reserve( adjusted_num_samples );
+      conj_sqr_mean_mags.reserve( adjusted_num_samples );
+      mag_sqrs.reserve( adjusted_num_samples );
+      mag_sqr_means.reserve( adjusted_num_samples );
+      norms.reserve( adjusted_num_samples );
+
+      exp_samples_d16 = new cufftComplex[num_samples];
+      exp_conj_sqrs = new cufftComplex[num_samples];
+      exp_conj_sqr_means = new cufftComplex[num_samples];
+      exp_conj_sqr_mean_mags = new float[num_samples];
+      exp_mag_sqrs = new float[num_samples];
+      exp_mag_sqr_means = new float[num_samples];
+      exp_norms = new float[num_samples];
+
+      for( int index = 0; index < num_samples; ++index ) {
+
+         exp_samples_d16[index] = make_cuFloatComplex(0.f,0.f);
+         exp_conj_sqrs[index] = make_cuFloatComplex(0.f,0.f);
+         exp_conj_sqr_means[index] = make_cuFloatComplex(0.f,0.f);
+         exp_mag_sqr_means[index] = 0.f;
+      } 
+
+      samples.resize(adjusted_num_samples);
+      
+      char* user_env = getenv( "USER" );
+      if ( user_env == nullptr ) {
+         throw std::runtime_error( "Empty USER env. USER environment variable needed for paths to files" ); 
+      }
+      
+      std::string filepath_prefix = "/home/" + std::string{user_env} + "/Sandbox/CUDA/norm_autocorr/";
+
+      dout << __func__ << "(): filename is " << filename << "\n";
+      dout << __func__ << "(): norm_filename is " << norm_filename << "\n";
+
+      filepath = filepath_prefix + filename;
+      norm_filepath = filepath_prefix + norm_filename;
+
+      dout << __func__ << "(): filepath is " << filepath << "\n";
+      dout << __func__ << "(): norm_filepath is " << norm_filepath << "\n"; 
+      
+
+
+      try_cuda_func_throw( cerror, cudaMemset( samples_d16.data(), adjusted_num_sample_bytes, 0 ) );
+      try_cuda_func_throw( cerror, cudaMemset( conj_sqrs.data(), adjusted_num_sample_bytes, 0 ) );
+      try_cuda_func_throw( cerror, cudaMemset( conj_sqr_means.data(), adjusted_num_sample_bytes, 0 ) );
+      try_cuda_func_throw( cerror, cudaMemset( conj_sqr_mean_mags.data(), adjusted_num_norm_bytes, 0 ) );
+      try_cuda_func_throw( cerror, cudaMemset( mag_sqrs.data(), adjusted_num_norm_bytes, 0 ) );
+      try_cuda_func_throw( cerror, cudaMemset( mag_sqr_means.data(), adjusted_num_norm_bytes, 0 ) );
+
+      //std::fill( samples_d16.begin(), samples_d16.end(), make_cuFloatComplex(0.f,0.f) );
+      //std::fill( conj_sqrs.begin(), conj_sqrs.end(), make_cuFloatComplex(0.f,0.f) );
+      //std::fill( conj_sqr_means.begin(), conj_sqr_means.end(), make_cuFloatComplex(0.f,0.f) );
+      //std::fill( conj_sqr_mean_mags.begin(), conj_sqr_mean_mags.end(), 0 );
+      //std::fill( mag_sqrs.begin(), mag_sqrs.end(), 0 );
+      //std::fill( mag_sqr_means.begin(), mag_sqr_means.end(), 0 );
+
+      std::fill( norms.begin(), norms.end(), 0 );
+
+   } catch( std::exception& ex ) {
+      throw std::runtime_error{
+         std::string{__func__} + std::string{"(): "} + ex.what()
+      }; 
+   }
+}
+
+
+void NormAutocorrGPU::initialize_samples( ) {
+   try {
+      if( mode_select == mode_select_t::Sinusoidal ) {
+         dout << __func__ << "(): Sinusoidal Sample Test Selected\n";
+         for( size_t index = 0; index < num_samples; ++index ) {
+            float t_val_real = AMPLITUDE*sin(2*PI*FREQ*index);
+            float t_val_imag = AMPLITUDE*sin(2*PI*FREQ*index);
+            samples[index] = make_cuFloatComplex( t_val_real, t_val_imag );
+         } 
+      } else if ( mode_select == mode_select_t::Random ) {
+         dout << __func__ << "(): Random Sample Test Selected\n";
+         gen_cufftComplexes( samples.data(), num_samples, -50.0, 50.0 );
+      } else if ( mode_select == mode_select_t::Filebased ) {
+         dout << __func__ << "(): File-Based Sample Test Selected. File is " << filepath << "\n";
+         read_binary_file<cufftComplex>( 
+            samples,
+            filepath.c_str(),
+            num_samples, 
+            debug );
+      }           
+      if (debug) {
+         print_cufftComplexes( samples.data(), num_samples, "Samples: ",  " ",  "\n" ); 
+      }
+   } catch( std::exception& ex ) {
+      throw std::runtime_error{
+         std::string{__func__} + std::string{"(): "} + ex.what()
+      }; 
+   } // end of try
+} // end of initialize_samples( const NormAutocorrGPU::TestSelect_e test_select = Sinusoidal, 
+
+
+void NormAutocorrGPU::print_results( const std::string& prefix = "Norms: " ) {
+   print_vals<float>( norms.data(), num_samples, prefix.data(),  " ",  "\n" );
+}
+
+
+void NormAutocorrGPU::check_results( const std::string& prefix = "" ) {
+   try {
+      float max_diff = 1;
+      bool all_close = false;
+      if ( debug ) {
+         print_results( prefix + std::string{"Norms: "} );
+         std::cout << "\n"; 
+      }
+      dout << __func__ << "():" << prefix << "norms Check:\n"; 
+      all_close = vals_are_close( norms.data(), exp_norms, num_samples, max_diff, "norms: ", debug );
+      if (!all_close) {
+         throw std::runtime_error{ std::string{"Mismatch between actual norms from GPU and expected norms."} };
+      }
+      dout << "\n"; 
+      
+      std::cout << prefix << "All " << num_samples << " Norm Values matched expected values. Test Passed.\n\n"; 
+
+   } catch( std::exception& ex ) {
+      throw std::runtime_error{
+         std::string{__func__} + std::string{"(): "} + ex.what()
+      }; 
+   }
+}
+
 
 void NormAutocorrGPU::run() {
    try {
@@ -22,7 +191,9 @@ void NormAutocorrGPU::run() {
       dout << __func__ << "(): threads_per_block is " << threads_per_block << "\n"; 
       dout << __func__ << "(): adjusted_num_samples is " << adjusted_num_samples << "\n"; 
       dout << __func__ << "(): num_blocks is " << num_blocks << "\n"; 
-
+      
+      initialize_samples();
+      
       gen_expected_norms();
 
       if ( debug ) {
@@ -63,30 +234,20 @@ void NormAutocorrGPU::run() {
       Duration_ms duration_ms = Steady_Clock::now() - start;
       gpu_milliseconds = duration_ms.count();
 
-      float max_diff = 1;
-      bool all_close = false;
-      if ( debug ) {
-         print_results( "Norms: " );
-         std::cout << "\n"; 
-      }
-      dout << __func__ << "(): norms Check:\n"; 
-      all_close = vals_are_close( norms.data(), exp_norms, num_samples, max_diff, "norms: ", debug );
-      if (!all_close) {
-         throw std::runtime_error{ std::string{__func__} + 
-            std::string{"(): Mismatch between actual norms from GPU and expected norms."} };
-      }
-      dout << "\n"; 
-      
-      std::cout << "All " << num_samples << " Norm Values matched expected values. Test Passed.\n\n"; 
+      check_results();
+
       std::cout << "It took the GPU " << gpu_milliseconds 
          << " milliseconds to process " << num_samples 
          << " samples\n";
 
-      std::cout << "That's a rate of " << ( (num_samples*1000.f)/gpu_milliseconds ) << " samples processed per second\n"; 
+      float samples_per_second = (num_samples*1000.f)/gpu_milliseconds;
+      std::cout << "That's a rate of " << samples_per_second/1e6 << " Msamples processed per second\n"; 
 
 
    } catch( std::exception& ex ) {
-      std::cout << __func__ << "(): " << ex.what() << "\n"; 
+      throw std::runtime_error{
+         std::string{__func__} + std::string{"(): "} + ex.what()
+      }; 
    }
 }
 
@@ -131,6 +292,7 @@ void NormAutocorrGPU::calc_auto_corrs() {
    dout << __func__ << "() end\n";
 }
 
+
 void NormAutocorrGPU::calc_exp_conj_sqr_means() {
 
    // exp_conj_sqr_means must already be all zeros
@@ -172,6 +334,29 @@ void NormAutocorrGPU::calc_exp_mag_sqr_means() {
    /*} */
 }
 
+
+void NormAutocorrGPU::delay_vals16() {
+   
+   dout << __func__ << "() start\n";
+   dout << __func__ << "() samples.size() is " << samples.size() << "\n";
+   dout << __func__ << "() samples[0] is " << samples[0] << "\n";
+   dout << __func__ << "() samples[1] is " << samples[1] << "\n";
+
+   for( int index = 0; index < num_samples; ++index ) {
+      if ( index < 16 ) {
+         exp_samples_d16[index] = make_cuFloatComplex(0.f, 0.f);
+      } else {
+         exp_samples_d16[index] = samples[index-16]; 
+      }
+   } 
+
+   dout << __func__ << "() exp_samples_d16[15] is " << exp_samples_d16[15] << "\n";
+   dout << __func__ << "() exp_samples_d16[16] is " << exp_samples_d16[16] << "\n";
+   dout << __func__ << "() exp_samples_d16[17] is " << exp_samples_d16[17] << "\n";
+   dout << __func__ << "() done\n";
+}  
+
+
 void NormAutocorrGPU::cpu_run() {
    try { 
       dout << __func__ << "(): num_samples is " 
@@ -192,9 +377,10 @@ void NormAutocorrGPU::cpu_run() {
 
       Duration_ms duration_ms = Steady_Clock::now() - start;
       cpu_milliseconds = duration_ms.count();
+      float samples_per_second = (num_samples*1000.f)/cpu_milliseconds;
 
       std::cout << "It took the CPU " << cpu_milliseconds << " milliseconds to process " << num_samples << " samples\n";
-      std::cout << "That's a rate of " << ((num_samples*1000.f)/cpu_milliseconds) << " samples processed per second\n\n"; 
+      std::cout << "That's a rate of " << samples_per_second/1e6 << " Msamples processed per second\n\n"; 
 
    } catch( std::exception& ex ) {
       throw std::runtime_error( std::string{__func__} +
@@ -207,7 +393,7 @@ void NormAutocorrGPU::gen_expected_norms() {
    try {
       cpu_run();
 
-      if( test_select_string =="Filebased" ) {
+      if( mode_select == mode_select_t::Filebased ) {
          float norms_from_file[num_samples];
          read_binary_file<float>( norms_from_file, 
             norm_filepath.c_str(), 
@@ -229,4 +415,28 @@ void NormAutocorrGPU::gen_expected_norms() {
          std::string{"(): "} + ex.what() ); 
    }
 
+}
+
+NormAutocorrGPU::~NormAutocorrGPU() {
+   dout << __func__ << "() started\n";
+   samples.clear();    
+   samples_d16.clear();
+   conj_sqrs.clear();
+   conj_sqr_means.clear();
+   conj_sqr_mean_mags.clear();
+   mag_sqrs.clear();
+   mag_sqr_means.clear();
+   norms.clear();
+
+   delete [] exp_samples_d16;
+   if ( exp_conj_sqrs ) delete [] exp_conj_sqrs;
+   if ( exp_conj_sqr_means ) delete [] exp_conj_sqr_means;
+   if ( exp_conj_sqr_mean_mags ) delete [] exp_conj_sqr_mean_mags;
+   if ( exp_mag_sqrs ) delete [] exp_mag_sqrs;
+   if ( exp_mag_sqr_means ) delete [] exp_mag_sqr_means;
+   if ( exp_norms ) delete [] exp_norms;
+
+   if ( stream_ptr ) cudaStreamDestroy( *(stream_ptr.get()) );
+
+   dout << __func__ << "() done\n";
 }

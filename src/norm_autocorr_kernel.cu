@@ -1,8 +1,3 @@
-
-#include <stdio.h>
-
-#include "my_cufft_utils.hpp"
-
 #include "norm_autocorr_kernel.cuh"
 
 template<typename T>
@@ -18,7 +13,6 @@ void delay16( T* delayed_vals, const T* vals, const int num_vals ) {
    }
 
 }
-
 
 template
 __device__

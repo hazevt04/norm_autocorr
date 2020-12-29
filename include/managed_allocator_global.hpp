@@ -1,7 +1,14 @@
 #pragma once
 
+#include <cuda_runtime.h>
+
+#include <iostream>
+#include <vector>
+#include <stdexcept>
+#include <exception>
+
 // Managed Allocator Class
-// Allows use of STL clases (like std::vector) with cudaMallocManaged() and cudaFree()
+// Allows use of STL classes (like std::vector) with cudaMallocManaged() and cudaFree()
 // From Jared Hoberock, NVIDIA:
 // https://github.com/jaredhoberock/managed_allocator/blob/master/managed_allocator.hpp
 
@@ -30,7 +37,7 @@ class managed_allocator_global {
             cudaError_t error = cudaMallocManaged(&result, n*sizeof(T), cudaMemAttachGlobal);
         
             if(error != cudaSuccess) {
-              throw std::runtime_error("managed_allocator_global::allocate(): cudaMallocManaged( cudaMemAttachGlobal )");
+              throw std::runtime_error("managed_allocator_global::allocate(): cudaMallocManaged( ..., cudaMemAttachGlobal )");
             }
             memory_is_allocated = true;
          }
@@ -43,7 +50,7 @@ class managed_allocator_global {
   
     void deallocate(value_type* ptr, size_t size) {
        if ( ptr ) {
-         cudaFree( ptr );
+         cudaFreeHost( ptr );
          ptr = nullptr;
        }
     }

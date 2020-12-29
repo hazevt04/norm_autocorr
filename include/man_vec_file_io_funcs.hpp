@@ -1,5 +1,7 @@
 #pragma once
 
+#include <exception>
+#include <stdexcept>
 
 #include "managed_allocator_global.hpp"
 #include "managed_allocator_host.hpp"

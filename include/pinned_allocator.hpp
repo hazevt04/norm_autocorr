@@ -1,7 +1,14 @@
 #pragma once
 
+#include <cuda_runtime.h>
+
+#include <iostream>
+#include <vector>
+#include <stdexcept>
+#include <exception>
+
 // Pinned Allocator Class
-// Allows use of STL clases (like std::vector) with cudaMalloc() and cudaFree()
+// Allows use of STL classes (like std::vector) with cudaMalloc() and cudaFree()
 // (like thrust's device_vector)
 // Based on Jared Hoberock, NVIDIA:
 // https://github.com/jaredhoberock/managed_allocator/blob/master/managed_allocator.hpp
@@ -28,10 +35,10 @@ class pinned_allocator {
          value_type* result = nullptr;
          if ( !memory_is_allocated ) {
      
-            cudaError_t error = cudaMalloc(&result, n*sizeof(T));
+            cudaError_t error = cudaHostAlloc(&result, n*sizeof(T), cudaHostAllocDefault );
         
             if(error != cudaSuccess) {
-              throw std::runtime_error("pinned_allocator::allocate(): cudaMalloc()");
+              throw std::runtime_error("pinned_allocator::allocate(): cudaHostAlloc( ..., cudaHostAllocDefault )");
             }
             memory_is_allocated = true;
          }
@@ -44,7 +51,7 @@ class pinned_allocator {
     
     void deallocate(value_type* ptr, size_t size) {
        if ( ptr ) {
-         cudaFree( ptr );
+         cudaFreeHost( ptr );
          ptr = nullptr;
        }
     } 

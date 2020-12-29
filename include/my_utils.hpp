@@ -31,6 +31,17 @@
       }
 #endif
 
+#ifndef check_status_throw
+#   define check_status_throw(status, msg)                     \
+      {                                                        \
+         if (status != SUCCESS) {                              \
+            throw std::runtime_error{ std::string{__func__} +  \
+               std::string{"(): " #msg ""}                     \
+            };                                                 \
+         }                                                     \
+      }
+#endif
+
 #ifndef try_new
 #   define try_new(type, ptr, num)               \
       {                                          \
@@ -53,6 +64,14 @@
       {                                \
          status = func;                \
          check_status(status, msg);    \
+      }
+#endif
+
+#ifndef try_func_throw
+#   define try_func_throw(status, msg, func) \
+      {                                \
+         status = func;                \
+         check_status_throw(status, msg);    \
       }
 #endif
 
@@ -90,6 +109,9 @@
 #   define MAX(a, b) ((a) > (b)) ? (a) : (b);
 #endif
 
+#ifndef MIN
+#   define MIN(a, b) ((a) < (b)) ? (a) : (b);
+#endif
 
 #ifndef CEILING
 #   define CEILING(a, b) ((a) + ((b)-1)) / (b);
@@ -109,6 +131,14 @@ std::unique_ptr<T> my_make_unique(Args&&... args) {
 // Only valid for signed integers, -2^30 < a,b <=(2^30)-1
 // or unsigned integers, 0 < a,b <= (2^31)-1
 inline int difference_or_zero(int a, int b) { return ((a - b) & ~((a - b) >> 31)); }
+
+// Just in case there is no intrinsic
+// From Hacker's Delight
+int my_popcount( unsigned int x );
+
+inline bool is_power_of_two( int val ) {
+   return ( my_popcount(val) == 1 );  
+}
 
 
 #define MILLISECONDS_PER_SECOND (1000.0f)
