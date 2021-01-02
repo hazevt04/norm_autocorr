@@ -158,7 +158,8 @@ void norm_autocorr_kernel(
 
    __syncthreads();
 
-   auto_correlation( conj_sqrs, 
+   auto_correlation( 
+      conj_sqrs, 
       samples_d16, 
       samples, 
       num_samples 
@@ -173,13 +174,15 @@ void norm_autocorr_kernel(
    );
    __syncthreads();
 
-   calc_conj_sqr_sum_mags( conj_sqr_sum_mags, 
+   calc_conj_sqr_sum_mags( 
+      conj_sqr_sum_mags, 
       conj_sqr_sums, 
       num_samples 
    );
    __syncthreads();
 
-   calc_mag_sqrs( mag_sqrs, 
+   calc_mag_sqrs( 
+      mag_sqrs, 
       samples, 
       num_samples 
    );
@@ -193,7 +196,8 @@ void norm_autocorr_kernel(
    );
    __syncthreads();
    
-   normalize( norms, 
+   normalize( 
+      norms, 
       conj_sqr_sum_mags, 
       mag_sqr_sums, 
       num_samples 

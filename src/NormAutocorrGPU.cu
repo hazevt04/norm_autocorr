@@ -75,12 +75,13 @@ void NormAutocorrGPU::run() {
       }
       dout << "\n"; 
       
+      float samples_per_second = (num_samples*1000.f)/gpu_milliseconds;
       std::cout << "All " << num_samples << " Norm Values matched expected values. Test Passed.\n\n"; 
       std::cout << "It took the GPU " << gpu_milliseconds 
          << " milliseconds to process " << num_samples 
          << " samples\n";
 
-      std::cout << "That's a rate of " << ( (num_samples*1000.f)/gpu_milliseconds ) << " samples processed per second\n"; 
+      std::cout << "That's a rate of " << samples_per_second/1e6 << " Msamples processed per second\n"; 
 
 
    } catch( std::exception& ex ) {
@@ -189,8 +190,9 @@ void NormAutocorrGPU::cpu_run() {
       Duration_ms duration_ms = Steady_Clock::now() - start;
       cpu_milliseconds = duration_ms.count();
 
+      float samples_per_second = (num_samples*1000.f)/cpu_milliseconds;
       std::cout << "It took the CPU " << cpu_milliseconds << " milliseconds to process " << num_samples << " samples\n";
-      std::cout << "That's a rate of " << ((num_samples*1000.f)/cpu_milliseconds) << " samples processed per second\n\n"; 
+      std::cout << "That's a rate of " << samples_per_second/1e6 << " Msamples processed per second\n\n"; 
 
    } catch( std::exception& ex ) {
       throw std::runtime_error( std::string{__func__} +  std::string{"(): "} + ex.what() ); 
