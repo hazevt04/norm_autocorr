@@ -1,8 +1,10 @@
+
 #include "my_cufft_utils.hpp"
 
-void gen_cufftComplexes( cufftComplex* complexes, const int num_complexes, const float lower, const float upper ) {
-   std::random_device random_dev;
-   std::mt19937 mersenne_gen(random_dev());
+void gen_cufftComplexes( cufftComplex* complexes, const int num_complexes, const float lower, const float upper, const int seed ) {
+   //std::random_device random_dev;
+   //std::mt19937 mersenne_gen(random_dev());
+   std::mt19937 mersenne_gen((float)seed);
    std::uniform_real_distribution<float> dist(lower, upper);
    for( int index = 0; index < num_complexes; ++index ) {
       complexes[index].x = dist( mersenne_gen );

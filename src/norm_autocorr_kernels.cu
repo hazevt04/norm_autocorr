@@ -3,7 +3,7 @@
 
 #include "my_cufft_utils.hpp"
 
-#include "norm_autocorr_kernel.cuh"
+#include "norm_autocorr_kernels.cuh"
 
 template<typename T>
 __device__
@@ -136,8 +136,9 @@ void normalize( float* __restrict__ norms,
 
 }
 
+
 __global__
-void norm_autocorr_kernel( 
+void norm_autocorr_kernels( 
    float* __restrict__ norms, 
    float* __restrict__ mag_sqr_sums, 
    float* __restrict__ mag_sqrs, 

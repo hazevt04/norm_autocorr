@@ -59,7 +59,7 @@ void normalize( float* __restrict__ norms,
 
 
 __global__
-void norm_autocorr_kernel( 
+void norm_autocorr_kernels( 
    float* __restrict__ norms, 
    float* __restrict__ mag_sqr_sums, 
    float* __restrict__ mag_sqrs, 

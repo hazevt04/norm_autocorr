@@ -2,11 +2,12 @@
 
 // My Utility Macros for cuFFT, CUDA's FFT library
 
-#include <cmath>
-#include <random>
+#include "my_cuda_utils.hpp"
 
 #include <cufft.h>
-#include "my_utils.hpp"
+
+#include <cmath>
+#include <random>
 
 /////////////////////////////
 // CUFFT Stuff
@@ -24,12 +25,8 @@ operator<<(std::basic_ostream<_CharT, _Traits>& __os, const cufftComplex& __c) {
     return __os << __s.str();
 }
 
-__device__ __host__ __inline__
-cufftComplex complex_divide_by_scalar( cufftComplex cval, float scalar_divisor ) {
-   return make_cuFloatComplex( cval.x/scalar_divisor, cval.y/scalar_divisor );
-}
 
-void gen_cufftComplexes( cufftComplex* complexes, const int num_complexes, const float lower, const float upper ); 
+void gen_cufftComplexes( cufftComplex* complexes, const int num_complexes, const float lower, const float upper, const int seed ); 
 
 bool cufftComplexes_are_close( const cufftComplex* lvals, const cufftComplex* rvals, 
     const int num_vals, const float max_diff, const std::string& prefix, const bool debug );

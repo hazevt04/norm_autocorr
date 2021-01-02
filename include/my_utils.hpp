@@ -91,6 +91,11 @@
 #endif
 
 
+#ifndef MIN
+#   define MIN(a, b) ((a) < (b)) ? (a) : (b);
+#endif
+
+
 #ifndef CEILING
 #   define CEILING(a, b) ((a) + ((b)-1)) / (b);
 #endif
@@ -104,6 +109,15 @@ std::unique_ptr<T> my_make_unique(Args&&... args) {
 #ifndef dout
 #  define dout debug && std::cout
 #endif
+
+
+// Just in case there is no intrinsic
+// From Hacker's Delight
+int my_popcount( unsigned int x );
+
+inline bool is_power_of_two( int val ) {
+   return ( my_popcount(val) == 1 );  
+}
 
 // Hacker's Delight Second Edition pg 44 ('doz')
 // Only valid for signed integers, -2^30 < a,b <=(2^30)-1
