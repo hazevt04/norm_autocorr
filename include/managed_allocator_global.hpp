@@ -1,5 +1,12 @@
 #pragma once
 
+#include <cuda_runtime.h>
+
+#include <iostream>
+#include <vector>
+#include <stdexcept>
+#include <exception>
+
 // Managed Allocator Class
 // Allows use of STL clases (like std::vector) with cudaMallocManaged() and cudaFree()
 // From Jared Hoberock, NVIDIA:

@@ -1,25 +1,18 @@
-#include <numeric>
-#include <memory>
-#include <exception>
-#include <algorithm>
-#include <numeric>
-
-#include "my_args.hpp"
-
-#include "my_cuda_utils.hpp"
-#include "pinned_vec_file_io_funcs.hpp"
-
-#include "norm_autocorr_kernel.cuh"
+#pragma once
 
 #include "device_allocator.hpp"
 #include "pinned_allocator.hpp"
+#include "pinned_vec_file_io_funcs.hpp"
 
-#include "VariadicToOutputStream.hpp"
+#include "my_args.hpp"
+
+#include "my_cufft_utils.hpp"
+#include "my_cuda_utils.hpp"
+#include "my_utils.hpp"
 
 constexpr float PI = 3.1415926535897238463f;
 constexpr float FREQ = 1000.f;
 constexpr float AMPLITUDE = 50.f;
-constexpr int threads_per_block = 1024;
 
 const std::string default_filename = "input_samples.5.9GHz.10MHzBW.560u.LS.dat"; 
 const std::string default_norm_filename = "norm_autocorr.5.9GHz.10MHzBW.560u.LS.dat"; 
@@ -70,7 +63,6 @@ public:
             << adjusted_num_norm_bytes << "\n\n";
 
          samples.reserve( adjusted_num_samples );
-         
          
          d_samples.reserve( adjusted_num_samples );
          samples_d16.reserve( adjusted_num_samples );

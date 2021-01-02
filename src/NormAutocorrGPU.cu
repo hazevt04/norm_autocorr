@@ -1,12 +1,12 @@
-#include <cuda_runtime.h>
-
-#include "my_utils.hpp"
-#include "my_cuda_utils.hpp"
-#include "my_cufft_utils.hpp"
 
 #include "NormAutocorrGPU.cuh"
 
-#include "norm_autocorr_kernel.cuh"
+#include "norm_autocorr_kernels.cuh"
+
+#include "my_cufft_utils.hpp"
+#include "my_cuda_utils.hpp"
+#include "my_utils.hpp"
+
 
 void NormAutocorrGPU::run() {
    try {

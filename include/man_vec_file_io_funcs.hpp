@@ -1,10 +1,13 @@
 #pragma once
 
-
 #include "managed_allocator_global.hpp"
 #include "managed_allocator_host.hpp"
 
 #include "my_file_io_funcs.hpp"
+
+#include <exception>
+#include <stdexcept>
+#include <string>
 
 template<typename T>
 void write_binary_file(

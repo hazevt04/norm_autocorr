@@ -1,7 +1,14 @@
 #pragma once
 
+#include <cuda_runtime.h>
+
+#include <iostream>
+#include <vector>
+#include <stdexcept>
+#include <exception>
+
 // Device Allocator Class
-// Allows use of STL clases (like std::vector) with cudaMalloc() and cudaFree()
+// Allows use of STL classes (like std::vector) with cudaMalloc() and cudaFree()
 // (like thrust's device_vector)
 // Based on Jared Hoberock, NVIDIA:
 // https://github.com/jaredhoberock/managed_allocator/blob/master/managed_allocator.hpp

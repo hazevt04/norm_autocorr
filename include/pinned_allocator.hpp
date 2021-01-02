@@ -1,5 +1,12 @@
 #pragma once
 
+#include <cuda_runtime.h>
+
+#include <iostream>
+#include <vector>
+#include <stdexcept>
+#include <exception>
+
 // Pinned Allocator Class
 // Allows use of STL clases (like std::vector) with cudaMalloc() and cudaFree()
 // (like thrust's device_vector)
