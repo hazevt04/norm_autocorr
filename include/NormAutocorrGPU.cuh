@@ -10,13 +10,13 @@
 #include "my_cuda_utils.hpp"
 
 #include "my_comparators.hpp"
-#include "my_generators.hpp"
+//#include "my_generators.hpp"
 #include "my_printers.hpp"
 #include "my_utils.hpp"
 
-constexpr float PI = 3.1415926535897238463f;
-constexpr float FREQ = 1000.f;
-constexpr float AMPLITUDE = 50.f;
+constexpr double PI = 3.1415926535897238463f;
+constexpr double FREQ = 1000.f;
+constexpr double AMPLITUDE = 50.f;
 
 const int MAX_NUM_SAMPLES_INCREASING = 65535;
 
@@ -32,7 +32,6 @@ public:
       const int new_threads_per_block,
       const int new_seed,
       const mode_select_t new_mode_select,
-      std::string new_filename,
       const bool new_debug 
    ); 
 
@@ -43,7 +42,6 @@ public:
             my_args.threads_per_block,
             my_args.seed,
             my_args.mode_select,
-            my_args.filename,
             my_args.debug ) {}
    
    void initialize_samples();
@@ -62,12 +60,6 @@ public:
 private:
    mode_select_t mode_select;
    
-   std::string filename = default_filename;
-   std::string norm_filename = default_norm_filename;
-   
-   std::string filepath = "";
-   std::string norm_filepath = "";
-
    size_t num_sample_bytes = 32000;
    size_t adjusted_num_sample_bytes = 32768;
    size_t num_norm_bytes = 16000;
@@ -84,24 +76,24 @@ private:
 
    std::unique_ptr<cudaStream_t> stream_ptr;
 
-   pinned_vector<cufftComplex> samples;
-   device_vector<cufftComplex> d_samples;
-   device_vector<cufftComplex> samples_d16;
-   device_vector<cufftComplex> conj_sqrs;
-   device_vector<cufftComplex> conj_sqr_sums;
-   device_vector<float> conj_sqr_sum_mags;
-   device_vector<float> mag_sqrs;
-   device_vector<float> mag_sqr_sums;
-   device_vector<float> d_norms;
-   pinned_vector<float> norms;
+   pinned_vector<cufftDoubleComplex> samples;
+   device_vector<cufftDoubleComplex> d_samples;
+   device_vector<cufftDoubleComplex> samples_d16;
+   device_vector<cufftDoubleComplex> conj_sqrs;
+   device_vector<cufftDoubleComplex> conj_sqr_sums;
+   device_vector<double> conj_sqr_sum_mags;
+   device_vector<double> mag_sqrs;
+   device_vector<double> mag_sqr_sums;
+   device_vector<double> d_norms;
+   pinned_vector<double> norms;
 
-   std::vector<cufftComplex> exp_samples_d16;
-   std::vector<cufftComplex> exp_conj_sqrs;
-   std::vector<cufftComplex> exp_conj_sqr_sums;
-   std::vector<float> exp_conj_sqr_sum_mags;
-   std::vector<float> exp_mag_sqrs;
-   std::vector<float> exp_mag_sqr_sums;
-   std::vector<float> exp_norms;
+   std::vector<cufftDoubleComplex> exp_samples_d16;
+   std::vector<cufftDoubleComplex> exp_conj_sqrs;
+   std::vector<cufftDoubleComplex> exp_conj_sqr_sums;
+   std::vector<double> exp_conj_sqr_sum_mags;
+   std::vector<double> exp_mag_sqrs;
+   std::vector<double> exp_mag_sqr_sums;
+   std::vector<double> exp_norms;
    
    void delay_vals16();
    void calc_norms();

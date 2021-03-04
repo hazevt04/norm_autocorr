@@ -25,17 +25,43 @@ operator<<(std::basic_ostream<_CharT, _Traits>& __os, const cufftComplex& __c) {
     return __os << __s.str();
 }
 
+template<class _CharT, class _Traits>
+std::basic_ostream<_CharT, _Traits>&
+operator<<(std::basic_ostream<_CharT, _Traits>& __os, const cufftDoubleComplex& __c) {
+    std::basic_ostringstream<_CharT, _Traits> __s;
+    __s.flags(__os.flags());
+    __s.imbue(__os.getloc());
+    __s.precision(__os.precision());
+    __s << "{" << __c.x << ", " << __c.y << "}";
+    return __os << __s.str();
+}
 
-void gen_cufftComplexes( cufftComplex* complexes, const int num_complexes, const float lower, const float upper, const int seed ); 
+void gen_cufftComplexes( cufftComplex* complexes, const int& num_complexes, const float& lower, const float& upper, const int& seed ); 
+
+void gen_cufftDoubleComplexes( cufftDoubleComplex* complexes, 
+    const int& num_complexes, const double& lower, const double& upper, const int& seed ); 
 
 bool cufftComplexes_are_close( const cufftComplex* lvals, const cufftComplex* rvals, 
-    const int num_vals, const float max_diff, const std::string& prefix, const bool debug );
+    const int& num_vals, const float& max_diff, const std::string& prefix, const bool& debug );
 
-void print_cufftComplexes(const cufftComplex* vals,
-   const int num_vals,
+bool cufftDoubleComplexes_are_close( const cufftDoubleComplex* lvals, const cufftDoubleComplex* rvals, 
+    const int& num_vals, const double& max_diff, const std::string& prefix, const bool& debug );
+
+void print_cufftComplexes(
+   const cufftComplex* vals,
+   const int& num_vals,
    const char* prefix,
    const char* delim,
    const char* suffix );
+
+
+void print_cufftDoubleComplexes(
+   const cufftDoubleComplex* vals,
+   const int& num_vals,
+   const char* prefix,
+   const char* delim,
+   const char* suffix );
+
 
 // Why doesnt CUFFT already have something like this in the API?
 inline const std::string get_cufft_status_msg(const cufftResult cufft_status) {

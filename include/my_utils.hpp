@@ -97,13 +97,17 @@ using llong = long long;
 using ulong = unsigned long;
 using uint = unsigned int;
 
+using complex_float = std::complex<float>;
+using complex_double = std::complex<double>;
 
-template<typename T>
-using complex_vector = std::vector<std::complex<T>>;
+using cf_vector = std::vector<complex_float>;
+using cd_vector = std::vector<complex_double>;
 
+template<class RealType>
+using complex_vector = std::vector<std::complex<RealType>>;
 
-template<typename T, size_t size>
-using complex_array = std::array<std::complex<T>, size>;
+template<class RealType, size_t size>
+using complex_array = std::array<std::complex<RealType>, size>;
 
 using Steady_Clock = std::chrono::steady_clock;
 using Time_Point = std::chrono::time_point<std::chrono::steady_clock>;

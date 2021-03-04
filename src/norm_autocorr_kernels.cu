@@ -22,13 +22,13 @@ void delay16( T* delayed_vals, const T* vals, const int num_vals ) {
 
 template
 __device__
-void delay16<cufftComplex>( cufftComplex* delayed_vals, const cufftComplex* vals, const int num_vals );
+void delay16<cufftDoubleComplex>( cufftDoubleComplex* delayed_vals, const cufftDoubleComplex* vals, const int num_vals );
 
 
 __device__
-void auto_correlation( cufftComplex* __restrict__ conj_sqrs, 
-      const cufftComplex* __restrict__ samples_d16,
-      const cufftComplex* __restrict__ samples, 
+void auto_correlation( cufftDoubleComplex* __restrict__ conj_sqrs, 
+      const cufftDoubleComplex* __restrict__ samples_d16,
+      const cufftDoubleComplex* __restrict__ samples, 
       const int num_samples 
    ) {
 
@@ -36,15 +36,15 @@ void auto_correlation( cufftComplex* __restrict__ conj_sqrs,
    int stride = blockDim.x * gridDim.x;
 
    for (int index = global_index; index < num_samples; index += stride) {
-      conj_sqrs[index] = cuCmulf( samples[index], cuConjf( samples_d16[index] ) );
+      conj_sqrs[index] = cuCmul( samples[index], cuConj( samples_d16[index] ) );
    }
 }
 
 
 __device__
 void calc_conj_sqr_sums( 
-      cufftComplex* __restrict__ conj_sqr_sums, 
-      const cufftComplex* __restrict__ conj_sqrs, 
+      cufftDoubleComplex* __restrict__ conj_sqr_sums, 
+      const cufftDoubleComplex* __restrict__ conj_sqrs, 
       const int conj_sqr_window_size, 
       const int num_windowed_conj_sqrs 
    ) { 
@@ -53,10 +53,10 @@ void calc_conj_sqr_sums(
    int stride = blockDim.x * gridDim.x;
 
    for (int index = global_index; index < num_windowed_conj_sqrs; index += stride) {
-      cufftComplex  t_conj_sqr_sum = make_cuFloatComplex(0.0,0.0);
+      cufftDoubleComplex  t_conj_sqr_sum = make_cuDoubleComplex(0.0,0.0);
 
       for( int w_index = 0; w_index < conj_sqr_window_size; ++w_index ) {
-         t_conj_sqr_sum = cuCaddf( t_conj_sqr_sum, conj_sqrs[index + w_index] );
+         t_conj_sqr_sum = cuCadd( t_conj_sqr_sum, conj_sqrs[index + w_index] );
       }
       conj_sqr_sums[index] = t_conj_sqr_sum;
    }
@@ -64,8 +64,8 @@ void calc_conj_sqr_sums(
 }
 
 __device__
-void calc_conj_sqr_sum_mags( float* __restrict__ conj_sqr_sum_mags, 
-      const cufftComplex* __restrict__ conj_sqr_sums, 
+void calc_conj_sqr_sum_mags( double* __restrict__ conj_sqr_sum_mags, 
+      const cufftDoubleComplex* __restrict__ conj_sqr_sums, 
       const int num_conj_sqr_sums 
    ) {
 
@@ -73,14 +73,14 @@ void calc_conj_sqr_sum_mags( float* __restrict__ conj_sqr_sum_mags,
    int stride = blockDim.x * gridDim.x;
 
    for (int index = global_index; index < num_conj_sqr_sums; index += stride) {
-      conj_sqr_sum_mags[index] = cuCabsf( conj_sqr_sums[index] );
+      conj_sqr_sum_mags[index] = cuCabs( conj_sqr_sums[index] );
    }
 }
 
 
 __device__
-void calc_mag_sqrs( float* __restrict__ mag_sqrs, 
-      const cufftComplex* __restrict__ samples, 
+void calc_mag_sqrs( double* __restrict__ mag_sqrs, 
+      const cufftDoubleComplex* __restrict__ samples, 
       const int num_samples 
    ) {
 
@@ -88,7 +88,7 @@ void calc_mag_sqrs( float* __restrict__ mag_sqrs,
    int stride = blockDim.x * gridDim.x;
 
    for (int index = global_index; index < num_samples; index += stride) {
-      float temp = cuCabsf( samples[index] );
+      double temp = cuCabs( samples[index] );
       mag_sqrs[index] = temp * temp;
    }
 }
@@ -96,8 +96,8 @@ void calc_mag_sqrs( float* __restrict__ mag_sqrs,
 
 __device__
 void calc_mag_sqr_sums( 
-      float* __restrict__ mag_sqr_sums, 
-      const float* __restrict__ mag_sqrs,
+      double* __restrict__ mag_sqr_sums, 
+      const double* __restrict__ mag_sqrs,
       const int mag_sqr_window_size, 
       const int num_windowed_mag_sqrs 
    ) { 
@@ -106,7 +106,7 @@ void calc_mag_sqr_sums(
    int stride = blockDim.x * gridDim.x;
 
    for (int index = global_index; index < num_windowed_mag_sqrs; index += stride) {
-      float  t_mag_sqr_sum = 0.0;
+      double  t_mag_sqr_sum = 0.0;
       for( int w_index = 0; w_index < mag_sqr_window_size; ++w_index ) {
          t_mag_sqr_sum = t_mag_sqr_sum + mag_sqrs[index + w_index];
       }
@@ -117,9 +117,9 @@ void calc_mag_sqr_sums(
 
 
 __device__
-void normalize( float* __restrict__ norms, 
-   const float* __restrict__ conj_sqr_sum_mags, 
-   const float* __restrict__ mag_sqr_sums, 
+void normalize( double* __restrict__ norms, 
+   const double* __restrict__ conj_sqr_sum_mags, 
+   const double* __restrict__ mag_sqr_sums, 
    const int num_mag_sqr_sums 
 ) {
 
@@ -139,14 +139,14 @@ void normalize( float* __restrict__ norms,
 
 __global__
 void norm_autocorr_kernels( 
-   float* __restrict__ norms, 
-   float* __restrict__ mag_sqr_sums, 
-   float* __restrict__ mag_sqrs, 
-   float* __restrict__ conj_sqr_sum_mags, 
-   cufftComplex* __restrict__ conj_sqr_sums, 
-   cufftComplex* __restrict__ conj_sqrs, 
-   cufftComplex* __restrict__ samples_d16, 
-   const cufftComplex* __restrict__ samples,
+   double* __restrict__ norms, 
+   double* __restrict__ mag_sqr_sums, 
+   double* __restrict__ mag_sqrs, 
+   double* __restrict__ conj_sqr_sum_mags, 
+   cufftDoubleComplex* __restrict__ conj_sqr_sums, 
+   cufftDoubleComplex* __restrict__ conj_sqrs, 
+   cufftDoubleComplex* __restrict__ samples_d16, 
+   const cufftDoubleComplex* __restrict__ samples,
    const int conj_sqr_window_size, 
    const int mag_sqr_window_size,
    const int num_samples 
@@ -155,7 +155,7 @@ void norm_autocorr_kernels(
    int num_windowed_conj_sqrs  = num_samples - conj_sqr_window_size;
    int num_windowed_mag_sqrs = num_samples - mag_sqr_window_size;
 
-   delay16<cufftComplex>( samples_d16, samples, num_samples );
+   delay16<cufftDoubleComplex>( samples_d16, samples, num_samples );
 
    __syncthreads();
 

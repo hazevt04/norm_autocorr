@@ -3,23 +3,17 @@
 
 #include "norm_autocorr_kernels.cuh"
 
-//#include "my_cufft_utils.hpp"
-//#include "my_cuda_utils.hpp"
-//#include "my_utils.hpp"
-
 
 NormAutocorrGPU::NormAutocorrGPU( 
    const int new_num_samples, 
    const int new_threads_per_block,
    const int new_seed,
    const mode_select_t new_mode_select,
-   const std::string new_filename,
    const bool new_debug ):
       num_samples( new_num_samples ),
       threads_per_block( new_threads_per_block ),
       seed( new_seed ),
       mode_select( new_mode_select ),
-      filename( new_filename ),
       debug( new_debug ) {
 
    try {
@@ -47,9 +41,9 @@ NormAutocorrGPU::NormAutocorrGPU(
       dout << __func__ << "(): num_blocks is " << num_blocks << "\n";
 
       adjusted_num_samples = threads_per_block * num_blocks;
-      adjusted_num_sample_bytes = adjusted_num_samples * sizeof( cufftComplex );
-      adjusted_num_norm_bytes = adjusted_num_samples * sizeof( float );
-      num_norm_bytes = adjusted_num_samples * sizeof( float );
+      adjusted_num_sample_bytes = adjusted_num_samples * sizeof( complex_double );
+      adjusted_num_norm_bytes = adjusted_num_samples * sizeof( double );
+      num_norm_bytes = adjusted_num_samples * sizeof( double );
       num_shared_bytes = 0;
 
       dout << __func__ << "(): adjusted number of samples for allocation is " 
@@ -83,30 +77,14 @@ NormAutocorrGPU::NormAutocorrGPU(
       exp_norms.reserve( num_samples );
 
       for( int index = 0; index < num_samples; ++index ) {
-         exp_samples_d16[index] = make_cuFloatComplex(0.f,0.f);
-         exp_conj_sqrs[index] =  make_cuFloatComplex(0.f,0.f);
-         exp_conj_sqr_sums[index] = make_cuFloatComplex(0.f,0.f);
+         exp_samples_d16[index] = make_cuDoubleComplex(0.f,0.f);
+         exp_conj_sqrs[index] = make_cuDoubleComplex(0.f,0.f);
+         exp_conj_sqr_sums[index] = make_cuDoubleComplex(0.f,0.f);
          exp_mag_sqrs[index] = 0.f;
          exp_mag_sqr_sums[index] = 0.f;
          exp_norms[index] = 0.f;
       } 
 
-      char* user_env = getenv( "USER" );
-      if ( user_env == nullptr ) {
-         throw std::runtime_error{ "Empty USER env. USER environment variable needed for paths to files" }; 
-      }
-      
-      std::string filepath_prefix = "/home/" + std::string{user_env} + "/Sandbox/CUDA/norm_autocorr/";
-
-      dout << "Filename is " << filename << "\n";
-      dout << "Norm Filename is " << norm_filename << "\n";
-
-      filepath = filepath_prefix + filename;
-      norm_filepath = filepath_prefix + norm_filename;
-
-      dout << "Filepath is " << filepath << "\n";
-      dout << "Norm Filepath is " << norm_filepath << "\n";
-      
    } catch( std::exception& ex ) {
       throw std::runtime_error{ "NormAutocorrGPU::" +  std::string{__func__} + "(): " + ex.what() }; 
    } // end of catch( std::exception& ex ) {
@@ -115,33 +93,31 @@ NormAutocorrGPU::NormAutocorrGPU(
 
 void NormAutocorrGPU::initialize_samples( ) {
    try {
-      std::fill( samples.begin(), samples.end(), make_cuFloatComplex(0.f,0.f) );
+      std::fill( samples.begin(), samples.end(), make_cuDoubleComplex(0.f,0.f) );
 
       if( mode_select == mode_select_t::Sinusoidal ) {
          dout << __func__ << "(): Sinusoidal Sample Mode Selected\n";
          for( size_t index = 0; index < num_samples; ++index ) {
-            float t_val_real = AMPLITUDE*sin(2*PI*FREQ*index);
-            float t_val_imag = AMPLITUDE*cos(2*PI*FREQ*index);
-            samples[index] = make_cuFloatComplex( t_val_real, t_val_imag );
+            double t_val_real = AMPLITUDE*sin(2*PI*FREQ*index);
+            double t_val_imag = AMPLITUDE*cos(2*PI*FREQ*index);
+            samples[index] = make_cuDoubleComplex( t_val_real, t_val_imag );
          }
       } else if ( mode_select == mode_select_t::Increasing ) {
          dout << __func__ << "(): Increasing Sample Mode Selected.\n";
          for( size_t index = 0; index < num_samples; ++index ) {
-            samples[index] = make_cuFloatComplex( (float)(index+1), (float)(index+1) );
+            samples[index] = make_cuDoubleComplex( (double)(index+1), (double)(index+1) );
          }
       } else if ( mode_select == mode_select_t::Random ) {
          dout << __func__ << "(): Random Sample Test Selected. Seed is " << seed << "\n";
-         gen_cufftComplexes( samples.data(), num_samples, -AMPLITUDE, AMPLITUDE, seed );
-
-      } else if ( mode_select == mode_select_t::Filebased ) {
-         dout << __func__ << "(): File-Based Sample Test Selected. File is " << filename << "\n";
-         read_binary_file<cufftComplex>( 
-            samples,
-            filepath.c_str(),
+         gen_cufftDoubleComplexes( 
+            samples.data(), 
             num_samples, 
-            debug 
+            -AMPLITUDE,
+            AMPLITUDE,
+            seed 
          );
-      } // end of else-ifs for mode_select
+
+      } 
 
    } catch( std::exception& ex ) {
       throw std::runtime_error{ "NormAutocorrGPU::" +  std::string{__func__} + "(): " + ex.what() }; 
@@ -150,13 +126,13 @@ void NormAutocorrGPU::initialize_samples( ) {
 
 
 void NormAutocorrGPU::print_results( const std::string& prefix = "Norms: " ) {
-   print_vals<float>( norms.data(), num_samples, "Norms: ",  " ",  "\n" );
+   print_vals<double>( norms.data(), num_samples, "Norms: ",  " ",  "\n" );
 }
 
 
 void NormAutocorrGPU::check_results( const std::string& prefix = "Original" ) {
    try {
-      float max_diff = 1;
+      double max_diff = 1;
       int mismatch_index = -1;
       bool all_close = false;
       if ( debug ) {
@@ -164,7 +140,7 @@ void NormAutocorrGPU::check_results( const std::string& prefix = "Original" ) {
          std::cout << "\n"; 
       }
       dout << __func__ << "(): norms Check:\n"; 
-      all_close = vals_are_close<float>( mismatch_index, norms.data(), exp_norms.data(), num_samples, max_diff );
+      all_close = vals_are_close<double>( mismatch_index, norms.data(), exp_norms.data(), num_samples, max_diff );
       if (!all_close) {
          throw std::runtime_error{
             "Mismatch between actual norms from GPU and expected norms at index " +
@@ -213,7 +189,7 @@ void NormAutocorrGPU::run_warmup() {
 void NormAutocorrGPU::run_original() {
    try {
       cudaError_t cerror = cudaSuccess;
-      float gpu_milliseconds = 0.f;
+      double gpu_milliseconds = 0.f;
       std::string prefix = "Original: ";
 
       std::fill( norms.begin(), norms.end(), 0.f );
@@ -244,7 +220,7 @@ void NormAutocorrGPU::run_original() {
       Duration_ms duration_ms = Steady_Clock::now() - start;
       gpu_milliseconds = duration_ms.count();
 
-      float samples_per_second = (num_samples*1000.f)/gpu_milliseconds;
+      double samples_per_second = (num_samples*1000.f)/gpu_milliseconds;
       std::cout << prefix << "All " << num_samples << " Norm Values matched expected values. Test Passed.\n"; 
       std::cout << prefix << "It took the GPU " << gpu_milliseconds 
          << " milliseconds to process " << num_samples 
@@ -292,7 +268,7 @@ void NormAutocorrGPU::delay_vals16() {
 
    for( int index = 0; index < num_samples; ++index ) {
       if ( index < 16 ) {
-         exp_samples_d16[index] = make_cuFloatComplex(0.f, 0.f);
+         exp_samples_d16[index] = make_cuDoubleComplex(0.f, 0.f);
       } else {
          exp_samples_d16[index] = samples[index-16]; 
       }
@@ -321,7 +297,7 @@ void NormAutocorrGPU::calc_norms() {
 void NormAutocorrGPU::calc_mags() {
    
    for( int index = 0; index < num_samples; ++index ) {
-      exp_conj_sqr_sum_mags[index] = cuCabsf( exp_conj_sqr_sums[index] );
+      exp_conj_sqr_sum_mags[index] = cuCabs( exp_conj_sqr_sums[index] );
    } 
 
 }
@@ -330,7 +306,7 @@ void NormAutocorrGPU::calc_mags() {
 void NormAutocorrGPU::calc_complex_mag_squares() {
 
    for( int index = 0; index < num_samples; ++index ) {
-      float temp = cuCabsf( samples[index] );
+      double temp = cuCabs( samples[index] );
       exp_mag_sqrs[index] = temp * temp;
    } 
 }
@@ -340,7 +316,7 @@ void NormAutocorrGPU::calc_auto_corrs() {
    
    dout << "NormAutocorrGPU::" << __func__ << "() start\n";
    for( int index = 0; index < num_samples; ++index ) {
-      exp_conj_sqrs[index] = cuCmulf( samples[index], cuConjf( exp_samples_d16[index] ) );
+      exp_conj_sqrs[index] = cuCmul( samples[index], cuConj( exp_samples_d16[index] ) );
    } 
    dout << "NormAutocorrGPU::" << __func__ << "() end\n";
 }
@@ -353,7 +329,7 @@ void NormAutocorrGPU::calc_exp_conj_sqr_sums() {
       << exp_conj_sqr_sums[0].x << ", " << exp_conj_sqr_sums[0].y << " }\n"; 
 
    for( int index = 0; index < conj_sqrs_window_size; ++index ) {
-      exp_conj_sqr_sums[0] = cuCaddf( exp_conj_sqr_sums[0], exp_conj_sqrs[index] );
+      exp_conj_sqr_sums[0] = cuCadd( exp_conj_sqr_sums[0], exp_conj_sqrs[index] );
    }
    dout << "NormAutocorrGPU::" << __func__ << "(): after initial summation, exp_conj_sqr_sums[0] = { " 
       << exp_conj_sqr_sums[0].x << ", " << exp_conj_sqr_sums[0].y << " }\n"; 
@@ -361,8 +337,8 @@ void NormAutocorrGPU::calc_exp_conj_sqr_sums() {
    int num_sums = num_samples - conj_sqrs_window_size;
    dout << "NormAutocorrGPU::" << __func__ << "(): num_sums is " << num_sums << "\n"; 
    for( int index = 1; index < num_sums; ++index ) {
-      cufftComplex temp = cuCsubf( exp_conj_sqr_sums[index-1], exp_conj_sqrs[index-1] );
-      exp_conj_sqr_sums[index] = cuCaddf( temp, exp_conj_sqrs[index + conj_sqrs_window_size-1] );
+      cufftDoubleComplex temp = cuCsub( exp_conj_sqr_sums[index-1], exp_conj_sqrs[index-1] );
+      exp_conj_sqr_sums[index] = cuCadd( temp, exp_conj_sqrs[index + conj_sqrs_window_size-1] );
    } 
 
 }
@@ -387,7 +363,7 @@ void NormAutocorrGPU::calc_exp_mag_sqr_sums() {
 
 void NormAutocorrGPU::cpu_run() {
    try { 
-      float cpu_milliseconds = 0.f;
+      double cpu_milliseconds = 0.f;
       
       dout << "NormAutocorrGPU::" << __func__ << "(): num_samples is " << num_samples << "\n";
       
@@ -406,7 +382,7 @@ void NormAutocorrGPU::cpu_run() {
       Duration_ms duration_ms = Steady_Clock::now() - start;
       cpu_milliseconds = duration_ms.count();
 
-      float samples_per_second = (num_samples*1000.f)/cpu_milliseconds;
+      double samples_per_second = (num_samples*1000.f)/cpu_milliseconds;
       std::cout << "It took the CPU " << cpu_milliseconds << " milliseconds to process " << num_samples << " samples\n";
       std::cout << "That's a rate of " << samples_per_second/1e6 << " Msamples processed per second\n\n"; 
 
@@ -420,28 +396,14 @@ void NormAutocorrGPU::gen_expected_norms() {
    try {
       cpu_run();
       
-      if ( mode_select == mode_select_t::Filebased ) {
-         float norms_from_file[num_samples];
-         read_binary_file<float>( norms_from_file, norm_filepath.c_str(), num_samples, debug );
-
-         float max_diff = 1.f;
-         int mismatch_index = -1;
-         dout << "NormAutocorrGPU::" << __func__ << "(): Exp Norms Check Against File:\n"; 
-         bool all_close = vals_are_close( mismatch_index, exp_norms.data(), norms_from_file, num_samples, max_diff );
-         if (!all_close) {
-            throw std::runtime_error{ "Mismatch between expected norms and norms from file." };
-         }
-         dout << "\n";
-      }
-
       if ( debug ) {
-         print_vals<cufftComplex>( exp_samples_d16, "Expected Samples D16: ", " ", "\n" ); 
-         print_vals<cufftComplex>( exp_conj_sqrs, "Expected Conjugate Squares: ", " ", "\n" );
-         print_vals<cufftComplex>( exp_conj_sqr_sums, "Expected Conjugate Square Means: ", " ", "\n" );
-         print_vals<float>( exp_conj_sqr_sum_mags, "Expected Conjugate Square Mean Mags: ", " ", "\n" ); 
-         print_vals<float>( exp_mag_sqrs, "Expected Magnitude Squares: ", " ", "\n" ); 
-         print_vals<float>( exp_mag_sqr_sums, "Expected Magnitude Square Means: ", " ", "\n" );
-         print_vals<float>( exp_norms, "Expected Norms: ", " ", "\n" ); 
+         print_cufftDoubleComplexes( exp_samples_d16.data(), num_samples, "Expected Samples D16: ", " ", "\n" ); 
+         print_cufftDoubleComplexes( exp_conj_sqrs.data(), num_samples, "Expected Conjugate Squares: ", " ", "\n" );
+         print_cufftDoubleComplexes( exp_conj_sqr_sums.data(), num_samples, "Expected Conjugate Square Means: ", " ", "\n" );
+         print_vals<double>( exp_conj_sqr_sum_mags.data(), num_samples, "Expected Conjugate Square Mean Mags: ", " ", "\n" ); 
+         print_vals<double>( exp_mag_sqrs.data(), num_samples, "Expected Magnitude Squares: ", " ", "\n" ); 
+         print_vals<double>( exp_mag_sqr_sums.data(), num_samples, "Expected Magnitude Square Means: ", " ", "\n" );
+         print_vals<double>( exp_norms.data(), num_samples, "Expected Norms: ", " ", "\n" ); 
       }
 
    } catch( std::exception& ex ) {

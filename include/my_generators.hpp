@@ -56,6 +56,91 @@ void gen_complex_vals( complex_vector<RealType>& vals,
 }
 
 
+//==================================================================
+
+template <class RealType>
+void gen_complex_vals( std::complex<RealType>* vals, const int& num_vals,
+        const std::complex<RealType>& lower, const std::complex<RealType>& upper ) {
+        
+   std::random_device random_dev;
+   std::mt19937 mersenne_gen(random_dev());
+   std::uniform_real_distribution<RealType> real_dist(lower.real(), upper.real());
+   std::uniform_real_distribution<RealType> imag_dist(lower.imag(), upper.imag());
+   
+   for( int index = 0; index < num_vals; ++index ) {
+      vals[index] = std::complex<RealType>{ real_dist( mersenne_gen ), imag_dist( mersenne_gen ) };
+   } 
+}
+
+
+template <class RealType>
+void gen_complex_vals( std::complex<RealType>* vals, const int& num_vals,
+        const std::complex<RealType>& lower, const std::complex<RealType>& upper, const int& seed ) {
+        
+   std::mt19937 mersenne_gen(seed);
+   std::uniform_real_distribution<RealType> real_dist(lower.real(), upper.real());
+   std::uniform_real_distribution<RealType> imag_dist(lower.imag(), upper.imag());
+   
+   for( int index = 0; index < num_vals; ++index ) {
+      vals[index] = std::complex<RealType>{ real_dist( mersenne_gen ), imag_dist( mersenne_gen ) };
+   } 
+}
+
+//=================================================================
+
+
+void gen_complex_vals( complex_float* vals, const int& num_vals, 
+        const complex_float& lower, const complex_float& upper ) {
+        
+   std::random_device random_dev;
+   std::mt19937 mersenne_gen(random_dev());
+   std::uniform_real_distribution<float> real_dist(lower.real(), upper.real());
+   std::uniform_real_distribution<float> imag_dist(lower.imag(), upper.imag());
+   
+   for( int index = 0; index < num_vals; ++index ) {
+      vals[index] = complex_float{ real_dist( mersenne_gen ), imag_dist( mersenne_gen ) };
+   } 
+}
+
+void gen_complex_vals( complex_float* vals, const int& num_vals,
+        const complex_float& lower, const complex_float& upper, const int& seed ) {
+        
+   std::mt19937 mersenne_gen(seed);
+   std::uniform_real_distribution<float> real_dist(lower.real(), upper.real());
+   std::uniform_real_distribution<float> imag_dist(lower.imag(), upper.imag());
+   
+   for( int index = 0; index < num_vals; ++index ) {
+      vals[index] = complex_float{ real_dist( mersenne_gen ), imag_dist( mersenne_gen ) };
+   } 
+}
+
+void gen_complex_vals( complex_double* vals, const int& num_vals,
+        const complex_double& lower, const complex_double& upper ) {
+        
+   std::random_device random_dev;
+   std::mt19937 mersenne_gen(random_dev());
+   std::uniform_real_distribution<double> real_dist(lower.real(), upper.real());
+   std::uniform_real_distribution<double> imag_dist(lower.imag(), upper.imag());
+   
+   for( int index = 0; index < num_vals; ++index ) {
+      vals[index] = complex_double{ real_dist( mersenne_gen ), imag_dist( mersenne_gen ) };
+   } 
+}
+
+void gen_complex_vals( complex_double* vals, const int& num_vals, 
+        const complex_double& lower, const complex_double& upper, const int& seed ) {
+        
+   std::mt19937 mersenne_gen(seed);
+   std::uniform_real_distribution<double> real_dist(lower.real(), upper.real());
+   std::uniform_real_distribution<double> imag_dist(lower.imag(), upper.imag());
+   
+   for( int index = 0; index < num_vals; ++index ) {
+      vals[index] = complex_double{ real_dist( mersenne_gen ), imag_dist( mersenne_gen ) };
+   } 
+}
+
+//==================================================================
+
 template <class RealType, size_t size>
 void gen_complex_vals( complex_array<RealType, size>& vals, 
         const std::complex<RealType>& lower, const std::complex<RealType>& upper ) {
@@ -90,9 +175,11 @@ void gen_complex_vals( complex_array<RealType, size>& vals,
    } 
 }
 
+///////////////////////////////////////////////////
+///////////////////////////////////////////////////
 
 template <class RealType>
-void gen_reals( RealType* vals, const int num_vals, const RealType& lower, const RealType& upper ) {
+void gen_reals( RealType* vals, const int& num_vals, const RealType& lower, const RealType& upper ) {
    std::random_device random_dev;
    std::mt19937 mersenne_gen(random_dev());
    std::uniform_real_distribution<RealType> dist(lower, upper);
@@ -103,7 +190,7 @@ void gen_reals( RealType* vals, const int num_vals, const RealType& lower, const
 
 
 template <class RealType>
-void gen_reals( RealType* vals, const int num_vals, const RealType& lower, const RealType& upper, const int& seed ) {
+void gen_reals( RealType* vals, const int& num_vals, const RealType& lower, const RealType& upper, const int& seed ) {
    std::mt19937 mersenne_gen(seed);
    std::uniform_real_distribution<RealType> dist(lower, upper);
    for( int index = 0; index < num_vals; ++index ) {

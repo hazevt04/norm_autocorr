@@ -11,11 +11,10 @@ void print_usage( char* prog_name ) {
    std::cout << "Usage: " << prog_name << ":\n";
    std::cout << "-m/--modeselect <selection> Select the mode for\n";
    std::cout << "                            test samples input. One of\n";
-   std::cout << "                               Sinusoidal, Increasing, Random, or Filebased\n";
+   std::cout << "                               Sinusoidal, Increasing, Random\n";
    std::cout << "-t/--threadsperblock <num>  Number of threads per block (Must be power of 2)\n"; 
    std::cout << "-n/--nsamples <num>         Number of Samples (ignored for Filebased select)\n";
    std::cout << "-s/--seed <num>             Seed for the random number generator (only used if Random select)\n";
-   std::cout << "-f/--filename <name>        Name of input file if Filebased select\n";
    std::cout << "-d/--debug                  Debug verbosity\n";
    std::cout << "-h/--help                   Show this usage message\n"; 
    std::cout << "\n"; 
@@ -24,15 +23,14 @@ void print_usage( char* prog_name ) {
 
 void parse_args( my_args_t& my_args, int argc, char** argv ) {
    try {
-      const char* const short_options = "m:t:n:s:f:dh";
+      const char* const short_options = "m:t:n:s:dh";
       const option long_options[] = {
          {"mode", optional_argument, nullptr, 'm'},
          {"threadsperblock", optional_argument, nullptr, 't'},
          {"nsamples", optional_argument, nullptr, 'n'},
          {"seed", optional_argument, nullptr, 's'},
-         {"filename", optional_argument, nullptr, 'f'},
-         {"debug", no_argument, nullptr, 0},
-         {"help", no_argument, nullptr, 0}
+         {"debug", no_argument, nullptr, 'd'},
+         {"help", no_argument, nullptr, 'h'}
       };
 
       while (true) {
@@ -85,9 +83,6 @@ void parse_args( my_args_t& my_args, int argc, char** argv ) {
                   );
                }
                my_args.seed = t_seed;
-               break;
-            case 'f':
-               my_args.filename = optarg;
                break;
             case 'd':
                my_args.debug = true;
