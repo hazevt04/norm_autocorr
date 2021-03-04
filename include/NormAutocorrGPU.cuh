@@ -8,6 +8,10 @@
 
 #include "my_cufft_utils.hpp"
 #include "my_cuda_utils.hpp"
+
+#include "my_comparators.hpp"
+#include "my_generators.hpp"
+#include "my_printers.hpp"
 #include "my_utils.hpp"
 
 constexpr float PI = 3.1415926535897238463f;
@@ -56,33 +60,6 @@ public:
    ~NormAutocorrGPU();
 
 private:
-   void delay_vals16();
-   void calc_norms();
-   void calc_mags();
-   void calc_complex_mag_squares(); 
-   void calc_auto_corrs();
-   void calc_exp_conj_sqr_sums();
-   void calc_exp_mag_sqr_sums();
-
-   pinned_vector<cufftComplex> samples;
-   device_vector<cufftComplex> d_samples;
-   device_vector<cufftComplex> samples_d16;
-   device_vector<cufftComplex> conj_sqrs;
-   device_vector<cufftComplex> conj_sqr_sums;
-   device_vector<float> conj_sqr_sum_mags;
-   device_vector<float> mag_sqrs;
-   device_vector<float> mag_sqr_sums;
-   device_vector<float> d_norms;
-   pinned_vector<float> norms;
-
-   cufftComplex* exp_samples_d16;
-   cufftComplex* exp_conj_sqrs;
-   cufftComplex* exp_conj_sqr_sums;
-   float* exp_conj_sqr_sum_mags;
-   float* exp_mag_sqrs;
-   float* exp_mag_sqr_sums;
-   float* exp_norms;
-
    mode_select_t mode_select;
    
    std::string filename = default_filename;
@@ -106,6 +83,33 @@ private:
    bool debug = false;
 
    std::unique_ptr<cudaStream_t> stream_ptr;
+
+   pinned_vector<cufftComplex> samples;
+   device_vector<cufftComplex> d_samples;
+   device_vector<cufftComplex> samples_d16;
+   device_vector<cufftComplex> conj_sqrs;
+   device_vector<cufftComplex> conj_sqr_sums;
+   device_vector<float> conj_sqr_sum_mags;
+   device_vector<float> mag_sqrs;
+   device_vector<float> mag_sqr_sums;
+   device_vector<float> d_norms;
+   pinned_vector<float> norms;
+
+   std::vector<cufftComplex> exp_samples_d16;
+   std::vector<cufftComplex> exp_conj_sqrs;
+   std::vector<cufftComplex> exp_conj_sqr_sums;
+   std::vector<float> exp_conj_sqr_sum_mags;
+   std::vector<float> exp_mag_sqrs;
+   std::vector<float> exp_mag_sqr_sums;
+   std::vector<float> exp_norms;
+   
+   void delay_vals16();
+   void calc_norms();
+   void calc_mags();
+   void calc_complex_mag_squares(); 
+   void calc_auto_corrs();
+   void calc_exp_conj_sqr_sums();
+   void calc_exp_mag_sqr_sums();
 };
 
 

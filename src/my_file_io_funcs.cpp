@@ -2,7 +2,12 @@
 
 #include "my_file_io_funcs.hpp"
 
-void check_num_file_bytes(llong& num_file_bytes, const char* filename, const bool debug = false) {
+#include "my_generators.hpp"
+#include "my_comparators.hpp"
+#include "my_printers.hpp"
+
+
+void check_num_file_bytes(llong& num_file_bytes, const char* filename, const bool& debug = false) {
 
    try {
       std::ifstream ifile;
@@ -12,8 +17,7 @@ void check_num_file_bytes(llong& num_file_bytes, const char* filename, const boo
          ifile.seekg(0, ifile.end);
          num_file_bytes = (llong)ifile.tellg();
          ifile.seekg(0, ifile.beg);
-         debug_cout(
-            debug, __func__, "(): File size for ", filename, " is ", num_file_bytes, " bytes\n\n");
+         dout << __func__ << "(): File size for " << filename << " is " << num_file_bytes << " bytes\n\n";
       } else {
          throw std::runtime_error{std::string{"Unable to open file, "} + filename +
             std::string{", for checking filesize."}};
@@ -26,18 +30,19 @@ void check_num_file_bytes(llong& num_file_bytes, const char* filename, const boo
 
 
 void test_my_file_io_funcs(
-   std::string filename, const int num_vals, const bool inject_error, const bool debug) {
+   std::string& filename, const int& num_vals, const bool& inject_error, const bool& debug) {
+
    try {
       llong num_file_bytes = 0;
 
       std::vector<float> write_vals(num_vals);
       std::vector<float> read_vals(num_vals);
 
-      gen_vals<float>(write_vals, 0, num_vals);
+      gen_reals<float>(write_vals, 0, num_vals);
       print_vals<float>(write_vals, "Write Vals:\n");
 
-      debug_cout(debug, "The input text file is ", filename, "\n");
-
+      dout << "The input text file is " << filename << "\n";
+         
       write_binary_file(write_vals, filename.c_str(), debug);
 
       check_num_file_bytes(num_file_bytes, filename.c_str(), debug);
@@ -50,8 +55,8 @@ void test_my_file_io_funcs(
 
       print_vals<float>(read_vals, "Read Vals:\n");
 
-      bool vals_match = compare_vals<float>(read_vals, write_vals); 
-      if ( !vals_match ) {
+      int mismatch_index = -1;
+      if ( !compare_vals<float>(mismatch_index, read_vals, write_vals) ) { 
          throw std::runtime_error{std::string{"Values read from "} + filename +
             std::string{" don't match values written."}};
       } else {
