@@ -9,7 +9,7 @@ typedef struct my_args_s {
    int delay = 16;
    int mag_sqrs_window_size = 64;
    // conj_window_size  = mag_sqrs_window_size - delay
-   int conj_window_size = 48;
+   int conj_sqrs_window_size = 48;
    int num_samples = 128000;
    int max_num_iters = 4000;
    bool debug = false;

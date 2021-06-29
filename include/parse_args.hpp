@@ -25,7 +25,7 @@ void parse_args( my_args_t& my_args, int argc, char** argv ) {
          {"help", no_argument, nullptr, 'h'}
       };
       
-      my_args.test_select_filename = "Filebased"
+      my_args.test_select_string = "Filebased";
       my_args.filename = "input_samples.5.180GHz.20MHzBW.560u.LS.dat";
       my_args.exp_norms_filename = "exp_norms.5.180GHz.20MHzBW.560u.LS.dat";
 

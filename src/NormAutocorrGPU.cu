@@ -72,7 +72,7 @@ NormAutocorrGPU::NormAutocorrGPU(
       dout << __func__ << "(): num_blocks is " << num_blocks << "\n";
 
       adjusted_num_samples = threads_per_block * num_blocks;
-      adjusted_num_sample_bytes =my_args_t adjusted_num_samples * sizeof( cufftComplex );
+      adjusted_num_sample_bytes = adjusted_num_samples * sizeof( cufftComplex );
       adjusted_num_norm_bytes = adjusted_num_samples * sizeof( float );
       num_norm_bytes = adjusted_num_samples * sizeof( float );
 
@@ -111,21 +111,21 @@ NormAutocorrGPU::NormAutocorrGPU(
       //try_cuda_func_throw( cerror, cudaMemset( mag_sqr_means.data(), adjusted_num_norm_bytes, 0 ) );
       //try_cuda_func_throw( cerror, cudaMemset( d_norms.data(), adjusted_num_norm_bytes, 0 ) );
       
-      exp_exp_samples_d16.resize(num_samples);
-      exp_exp_conj_sqrs.resize(num_samples);
-      exp_exp_conj_sqr_means.resize(num_samples);
-      exp_exp_conj_sqr_mean_mags.resize(num_samples);
-      exp_exp_mag_sqrs.resize(num_samples);
-      exp_exp_mag_sqr_means.resize(num_samples);
-      exp_exp_norms.resize(num_samples);
+      exp_samples_d16.resize(num_samples);
+      exp_conj_sqrs.resize(num_samples);
+      exp_conj_sqr_means.resize(num_samples);
+      exp_conj_sqr_mean_mags.resize(num_samples);
+      exp_mag_sqrs.resize(num_samples);
+      exp_mag_sqr_means.resize(num_samples);
+      exp_norms.resize(num_samples);
 
-      exp_exp_samples_d16.reserve(num_samples);
-      exp_exp_conj_sqrs.reserve(num_samples);
-      exp_exp_conj_sqr_means.reserve(num_samples);
-      exp_exp_conj_sqr_mean_mags.reserve(num_samples);
-      exp_exp_mag_sqrs.reserve(num_samples);
-      exp_exp_mag_sqr_means.reserve(num_samples);
-      exp_exp_norms.reserve(num_samples);
+      exp_samples_d16.reserve(num_samples);
+      exp_conj_sqrs.reserve(num_samples);
+      exp_conj_sqr_means.reserve(num_samples);
+      exp_conj_sqr_mean_mags.reserve(num_samples);
+      exp_mag_sqrs.reserve(num_samples);
+      exp_mag_sqr_means.reserve(num_samples);
+      exp_norms.reserve(num_samples);
       
       for( int index = 0; index < num_samples; ++index ) {
          exp_samples_d16[index] = make_cuFloatComplex(0.f,0.f);
@@ -373,7 +373,7 @@ void NormAutocorrGPU::gen_expected_norms() {
          float max_diff = 1.f;
          bool all_close = false;
          dout << __func__ << "(): Exp Norms Check Against File:\n"; 
-         all_close = vals_are_close( exp_norms, norms_from_file, num_samples, max_diff, "exp norms: ", debug );
+         all_close = vals_are_close( exp_norms.data(), norms_from_file, num_samples, max_diff, "exp norms: ", debug );
          if (!all_close) {
             throw std::runtime_error{ std::string{__func__} + 
                std::string{"(): Mismatch between expected norms and norms from file."} };
@@ -422,13 +422,20 @@ NormAutocorrGPU::~NormAutocorrGPU() {
    norms.clear();
    //d_norms.clear();
 
-   delete [] exp_samples_d16;
-   if ( exp_conj_sqrs ) delete [] exp_conj_sqrs;
-   if ( exp_conj_sqr_means ) delete [] exp_conj_sqr_means;
-   if ( exp_conj_sqr_mean_mags ) delete [] exp_conj_sqr_mean_mags;
-   if ( exp_mag_sqrs ) delete [] exp_mag_sqrs;
-   if ( exp_mag_sqr_means ) delete [] exp_mag_sqr_means;
-   if ( exp_norms ) delete [] exp_norms;
+   /*delete [] exp_samples_d16;*/
+   /*if ( exp_conj_sqrs ) delete [] exp_conj_sqrs;*/
+   /*if ( exp_conj_sqr_means ) delete [] exp_conj_sqr_means;*/
+   /*if ( exp_conj_sqr_mean_mags ) delete [] exp_conj_sqr_mean_mags;*/
+   /*if ( exp_mag_sqrs ) delete [] exp_mag_sqrs;*/
+   /*if ( exp_mag_sqr_means ) delete [] exp_mag_sqr_means;*/
+   /*if ( exp_norms ) delete [] exp_norms;*/
+   exp_samples_d16.clear();
+   exp_conj_sqrs.clear();
+   exp_conj_sqr_means.clear();
+   exp_conj_sqr_mean_mags.clear();
+   exp_mag_sqrs.clear();
+   exp_mag_sqr_means.clear();
+   exp_norms.clear();
 
    if ( stream_ptr ) cudaStreamDestroy( *(stream_ptr.get()) );
    

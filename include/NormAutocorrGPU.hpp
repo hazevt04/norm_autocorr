@@ -31,7 +31,7 @@ public:
       const my_args_t& args
    );
 
-   void initialize_samples( const int seed = 0, const bool debug = false );
+   void initialize_samples( const int seed, const bool debug );
 
    void run();
    void cpu_run();
