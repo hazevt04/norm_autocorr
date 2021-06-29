@@ -1,16 +1,11 @@
 // C++ File for main
 
-#include "NormAutocorrGPU.cuh"
+#include "NormAutocorrGPU.hpp"
 
 #include "parse_args.hpp"
 
 int main(int argc, char **argv) {
    try {
-      int num_vals = 4000;
-      int conj_window_size = 48;
-      int mag_sqrs_window_size = 64;
-      int max_num_iters = 4000;
-      
       my_args_t my_args;
       parse_args( my_args, argc, argv ); 
 
@@ -18,8 +13,7 @@ int main(int argc, char **argv) {
          return EXIT_SUCCESS;
       }
 
-      NormAutocorrGPU norm_autocorr_gpu{ num_vals, conj_window_size, 
-         mag_sqrs_window_size, max_num_iters, my_args };
+      NormAutocorrGPU norm_autocorr_gpu{ my_args };
 
       norm_autocorr_gpu.run();
       return EXIT_SUCCESS;
