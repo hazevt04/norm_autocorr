@@ -25,6 +25,7 @@ set(SRCS
    "src/my_utils.cpp"
    "src/my_file_io_funcs.cpp"
    "src/my_cufft_utils.cpp"
+   "src/my_args.cpp"
    "src/norm_autocorr_kernel.cu"
    "src/NormAutocorrGPU.cu"
    "src/main.cpp"

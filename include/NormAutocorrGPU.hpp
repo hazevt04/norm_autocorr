@@ -1,10 +1,10 @@
 
 #include "norm_autocorr_kernel.cuh"
 
-#include "pinned_mapped_vec_file_io_funcs.hpp"
+#include "man_vec_file_io_funcs.hpp"
 
-#include "device_allocator.hpp"
-#include "pinned_mapped_allocator.hpp"
+#include "managed_allocator_global.hpp"
+#include "managed_allocator_host.hpp"
 
 #include "my_cuda_utils.hpp"
 #include "my_args.hpp"
@@ -18,7 +18,7 @@
 constexpr float PI = 3.1415926535897238463f;
 constexpr float FREQ = 1000.f;
 constexpr float AMPLITUDE = 50.f;
-constexpr int threads_per_block = 1024;
+constexpr int threads_per_block = 64;//1024;
 
 const std::string default_filename = "input_samples.5.180GHz.20MHzBW.560u.LS.dat"; 
 const std::string default_exp_norms_filename = "exp_norms.5.180GHz.20MHzBW.560u.LS.dat";
@@ -50,29 +50,24 @@ private:
    void calc_mags();
    void calc_complex_mag_squares(); 
    void calc_auto_corrs();
-   void calc_exp_conj_sqr_means();
-   void calc_exp_mag_sqr_means();
+   void calc_exp_conj_sqr_sums();
+   void calc_exp_mag_sqr_sums();
 
-   pinned_mapped_vector<cufftComplex> samples;
-   //device_vector<cufftComplex> d_samples;
-   device_vector<cufftComplex> samples_d16;
-   device_vector<cufftComplex> conj_sqrs;
-   device_vector<cufftComplex> conj_sqr_means;
-   device_vector<float> conj_sqr_mean_mags;
-   device_vector<float> mag_sqrs;
-   device_vector<float> mag_sqr_means;
-   //device_vector<float> d_norms;
-   pinned_mapped_vector<float> norms;
-
-   float* d_norms;
-   cufftComplex* d_samples;
+   managed_vector_host<cufftComplex> samples;
+   managed_vector_global<cufftComplex> samples_d16;
+   managed_vector_global<cufftComplex> conj_sqrs;
+   managed_vector_global<cufftComplex> conj_sqr_sums;
+   managed_vector_global<float> conj_sqr_sum_mags;
+   managed_vector_global<float> mag_sqrs;
+   managed_vector_global<float> mag_sqr_sums;
+   managed_vector_global<float> norms;
 
    std::vector<cufftComplex> exp_samples_d16;
    std::vector<cufftComplex> exp_conj_sqrs;
-   std::vector<cufftComplex> exp_conj_sqr_means;
-   std::vector<float> exp_conj_sqr_mean_mags;
+   std::vector<cufftComplex> exp_conj_sqr_sums;
+   std::vector<float> exp_conj_sqr_sum_mags;
    std::vector<float> exp_mag_sqrs;
-   std::vector<float> exp_mag_sqr_means;
+   std::vector<float> exp_mag_sqr_sums;
    std::vector<float> exp_norms;
 
    std::string test_select_string;
@@ -90,7 +85,7 @@ private:
 
    int device_id = 0;
    int num_blocks = 4;
-   int threads_per_block = 1024;
+   int threads_per_block = 64;//1024;
    int num_samples = 4000;
    int adjusted_num_samples = 4096;
    int conj_sqrs_window_size = 48;

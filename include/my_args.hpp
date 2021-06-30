@@ -16,3 +16,6 @@ typedef struct my_args_s {
    bool help_showed =false;
 } my_args_t;
 
+
+void print_my_args( const my_args_t& my_args );
+
