@@ -11,7 +11,6 @@ cufftComplex complex_divide_by_scalar( cufftComplex cval, float scalar_divisor )
 __global__
 void delay16( cufftComplex* delayed_vals, const cufftComplex* vals, const int num_vals );
 
-
 __global__
 void auto_correlation( 
    cufftComplex* __restrict__ conj_sqrs, 

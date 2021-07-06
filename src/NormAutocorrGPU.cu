@@ -86,7 +86,6 @@ NormAutocorrGPU::NormAutocorrGPU(
 
       samples.reserve( adjusted_num_samples );
       
-      //d_samples.reserve( adjusted_num_samples );
       samples_d16.reserve( adjusted_num_samples );
       conj_sqrs.reserve( adjusted_num_samples );
       conj_sqr_sums.reserve( adjusted_num_samples );
@@ -94,20 +93,23 @@ NormAutocorrGPU::NormAutocorrGPU(
       mag_sqrs.reserve( adjusted_num_samples );
       mag_sqr_sums.reserve( adjusted_num_samples );
       norms.reserve( adjusted_num_samples );
-      //d_norms.reserve( adjusted_num_samples );
 
       samples.resize(adjusted_num_samples); 
+      samples_d16.resize( adjusted_num_samples );
+      conj_sqrs.resize( adjusted_num_samples );
+      conj_sqr_sums.resize( adjusted_num_samples );
+      conj_sqr_sum_mags.resize( adjusted_num_samples );
+      mag_sqrs.resize( adjusted_num_samples );
+      mag_sqr_sums.resize( adjusted_num_samples );
       norms.resize(adjusted_num_samples);
-      std::fill( norms.begin(), norms.end(), 0 );
       
-      //try_cuda_func_throw( cerror, cudaMemset( d_samples.data(), adjusted_num_sample_bytes, 0 ) );
-      //try_cuda_func_throw( cerror, cudaMemset( samples_d16.data(), adjusted_num_sample_bytes, 0 ) );
-      //try_cuda_func_throw( cerror, cudaMemset( conj_sqrs.data(), adjusted_num_sample_bytes, 0 ) );
-      //try_cuda_func_throw( cerror, cudaMemset( conj_sqr_sums.data(), adjusted_num_sample_bytes, 0 ) );
-      //try_cuda_func_throw( cerror, cudaMemset( conj_sqr_sum_mags.data(), adjusted_num_sample_bytes, 0 ) );
-      //try_cuda_func_throw( cerror, cudaMemset( mag_sqrs.data(), adjusted_num_norm_bytes, 0 ) );
-      //try_cuda_func_throw( cerror, cudaMemset( mag_sqr_sums.data(), adjusted_num_norm_bytes, 0 ) );
-      //try_cuda_func_throw( cerror, cudaMemset( d_norms.data(), adjusted_num_norm_bytes, 0 ) );
+      std::fill( samples_d16.begin(), samples_d16.end(), make_cuFloatComplex(0.f,0.f) );
+      std::fill( conj_sqrs.begin(), conj_sqrs.end(), make_cuFloatComplex(0.f,0.f) );
+      std::fill( conj_sqr_sums.begin(), conj_sqr_sums.end(), make_cuFloatComplex(0.f,0.f) );
+      std::fill( conj_sqr_sum_mags.begin(), conj_sqr_sum_mags.end(), 0.f );
+      std::fill( mag_sqrs.begin(), mag_sqrs.end(), 0.f );
+      std::fill( mag_sqr_sums.begin(), mag_sqr_sums.end(), 0.f );
+      std::fill( norms.begin(), norms.end(), 0.f );
       
       exp_samples_d16.resize(num_samples);
       exp_conj_sqrs.resize(num_samples);
@@ -129,11 +131,11 @@ NormAutocorrGPU::NormAutocorrGPU(
          exp_samples_d16[index] = make_cuFloatComplex(0.f,0.f);
          exp_conj_sqrs[index] =  make_cuFloatComplex(0.f,0.f);
          exp_conj_sqr_sums[index] = make_cuFloatComplex(0.f,0.f);
+         exp_conj_sqr_sum_mags[index] = 0.f;
          exp_mag_sqrs[index] = 0.f;
          exp_mag_sqr_sums[index] = 0.f;
          exp_norms[index] = 0.f;
       } 
-
 
       char* user_env = getenv( "USER" );
       if ( user_env == nullptr ) {
@@ -146,9 +148,22 @@ NormAutocorrGPU::NormAutocorrGPU(
       filepath = filepath_prefix + filename;
       exp_norms_filepath = filepath_prefix + exp_norms_filename;
 
+      exp_samples_d16_filepath = filepath_prefix + exp_samples_d16_filename;
+      exp_conj_sqrs_filepath = filepath_prefix + exp_conj_sqrs_filename;
+      exp_conj_sqr_sums_filepath = filepath_prefix + exp_conj_sqr_sums_filename;
+      exp_conj_sqr_sum_mags_filepath = filepath_prefix + exp_conj_sqr_sum_mags_filename;
+      exp_mag_sqrs_filepath = filepath_prefix + exp_mag_sqrs_filename;
+      exp_mag_sqr_sums_filepath = filepath_prefix + exp_mag_sqr_sums_filename;
+
       dout << "Filepath is " << filepath << "\n";
       dout << "Expected Norms Filepath is " << exp_norms_filepath << "\n";
-      
+      dout << "exp_samples_d16 Filepath is '" << exp_samples_d16_filepath << "'\n";
+      dout << "exp_conj_sqrs Filepath is '" << exp_conj_sqrs_filepath << "'\n";
+      dout << "exp_conj_sqr_sums Filepath is '" << exp_conj_sqr_sums_filepath << "'\n";
+      dout << "exp_conj_sqr_sum_mags Filepath is '" << exp_conj_sqr_sum_mags_filepath << "'\n";
+      dout << "exp_mag_sqrs Filepath is '" << exp_mag_sqrs_filepath << "'\n";
+      dout << "exp_mag_sqr_sums Filepath is '" << exp_mag_sqr_sums_filepath << "'\n";
+
       initialize_samples();
 
    } catch( std::exception& ex ) {
@@ -173,27 +188,21 @@ void NormAutocorrGPU::run() {
 
       gen_expected_norms();
 
+      int num_to_print = 80;
       if ( debug ) {
-         print_vals( samples.data(), num_samples, "Samples: ", " ", "\n" ); 
-         if ( test_select_string != "Filebased" ) {
-            print_cufftComplexes( exp_samples_d16.data(), num_samples, "Expected Samples D16: ", " ", "\n" ); 
-            print_cufftComplexes( exp_conj_sqrs.data(), num_samples, "Expected Conjugate Squares: ", " ", "\n" );
-            print_cufftComplexes( exp_conj_sqr_sums.data(), num_samples, "Expected Conjugate Square Means: ", " ", "\n" );
-            print_vals( exp_conj_sqr_sum_mags.data(), num_samples, "Expected Conjugate Square Mean Mags: ", " ", "\n" ); 
-            print_vals( exp_mag_sqrs.data(), num_samples, "Expected Magnitude Squares: ", " ", "\n" ); 
-            print_vals( exp_mag_sqr_sums.data(), num_samples, "Expected Magnitude Square Means: ", " ", "\n" );
-         }
-         print_vals( exp_norms.data(), num_samples, "Expected Norms: ", " ", "\n" ); 
+         print_cufftComplexes( samples.data(), num_to_print, "Samples: ", " ", "\n" ); 
+         print_cufftComplexes( exp_samples_d16.data(), num_to_print, "Expected Samples D16: ", " ", "\n" ); 
+         print_cufftComplexes( exp_conj_sqrs.data(), num_to_print, "Expected Conjugate Squares: ", " ", "\n" );
+         print_cufftComplexes( exp_conj_sqr_sums.data(), num_to_print, "Expected Conjugate Square Sums: ", " ", "\n" );
+         print_vals( exp_conj_sqr_sum_mags.data(), num_to_print, "Expected Conjugate Square Sum Mags: ", " ", "\n" ); 
+         print_vals( exp_mag_sqrs.data(), num_to_print, "Expected Magnitude Squares: ", " ", "\n" ); 
+         print_vals( exp_mag_sqr_sums.data(), num_to_print, "Expected Magnitude Square Sums: ", " ", "\n" );
+         print_vals( exp_norms.data(), num_to_print, "Expected Norms: ", " ", "\n" ); 
       }
       
       float gpu_milliseconds = 0.f;
       Time_Point start = Steady_Clock::now();
       
-      //try_cuda_func( cerror, cudaMemcpyAsync( d_samples.data(), samples.data(), adjusted_num_sample_bytes,
-      //         cudaMemcpyHostToDevice, *(stream_ptr.get()) ) );
-      //try_cuda_func_throw( cerror, cudaMemPrefetchAsync( d_samples, adjusted_num_sample_bytes, 
-      //   device_id, *(stream_ptr.get()) ) );
-
       dout << __func__ << "(): Running the CUDA kernels...\n";
       delay16<<<num_blocks, threads_per_block, 0, *(stream_ptr.get())>>>( 
          samples_d16.data(), samples.data(), adjusted_num_samples );
@@ -234,29 +243,21 @@ void NormAutocorrGPU::run() {
          adjusted_num_samples 
       );
 
-      //try_cuda_func( cerror, cudaMemcpyAsync( norms.data(), d_norms.data(), adjusted_num_norm_bytes,
-      //         cudaMemcpyDeviceToHost, *(stream_ptr.get()) ) );
-      //try_cuda_func_throw( cerror, cudaMemPrefetchAsync( d_norms, adjusted_num_norm_bytes, 
-      //   device_id, *(stream_ptr.get()) ) );     
-      
       try_cuda_func_throw( cerror, cudaDeviceSynchronize() );
-      
       if ( debug ) {
-         if ( test_select_string != "Filebased" ) {
-            print_cufftComplexes( samples_d16.data(), num_samples, "Actual Samples D16: ", " ", "\n" ); 
-            print_cufftComplexes( conj_sqrs.data(), num_samples, "Actual Conjugate Squares: ", " ", "\n" );
-            print_cufftComplexes( conj_sqr_sums.data(), num_samples, "Actual Conjugate Square Means: ", " ", "\n" );
-            print_vals( conj_sqr_sum_mags.data(), num_samples, "Actual Conjugate Square Mean Mags: ", " ", "\n" ); 
-            print_vals( mag_sqrs.data(), num_samples, "Actual Magnitude Squares: ", " ", "\n" ); 
-            print_vals( mag_sqr_sums.data(), num_samples, "Actual Magnitude Square Means: ", " ", "\n" );
-         }      
+         print_cufftComplexes( samples_d16.data(), num_to_print, "Actual Samples D16: ", " ", "\n" ); 
+         print_cufftComplexes( conj_sqrs.data(), num_to_print, "Actual Conjugate Squares: ", " ", "\n" );
+         print_cufftComplexes( conj_sqr_sums.data(), num_to_print, "Actual Conjugate Square Sums: ", " ", "\n" );
+         print_vals( conj_sqr_sum_mags.data(), num_to_print, "Actual Conjugate Square Sum Mags: ", " ", "\n" ); 
+         print_vals( mag_sqrs.data(), num_to_print, "Actual Magnitude Squares: ", " ", "\n" ); 
+         print_vals( mag_sqr_sums.data(), num_to_print, "Actual Magnitude Square Sums: ", " ", "\n" );
       }
 
       Duration_ms duration_ms = Steady_Clock::now() - start;
       gpu_milliseconds = duration_ms.count();
       dout << __func__ << "(): CUDA kernels took " << gpu_milliseconds << " ms\n";
 
-      float max_diff = 1;
+      float max_diff = 0.01;
       bool all_close = false;
       if ( debug ) {
          print_results( "Norms: " );
@@ -397,9 +398,15 @@ void NormAutocorrGPU::cpu_run() {
 
 void NormAutocorrGPU::gen_expected_norms() {
    try { 
-
+      
       if ( test_select_string == "Filebased" ) {
-         read_binary_file<float>( exp_norms.data(), exp_norms_filepath.c_str(), num_samples-10, debug );
+         read_binary_file<cufftComplex>( exp_samples_d16.data(), exp_samples_d16_filepath.c_str(), num_samples, debug );
+         read_binary_file<cufftComplex>( exp_conj_sqrs.data(), exp_conj_sqrs_filepath.c_str(), num_samples, debug );
+         read_binary_file<cufftComplex>( exp_conj_sqr_sums.data(), exp_conj_sqr_sums_filepath.c_str(), num_samples, debug );
+         read_binary_file<float>( exp_conj_sqr_sum_mags.data(), exp_conj_sqr_sum_mags_filepath.c_str(), num_samples, debug );
+         read_binary_file<float>( exp_mag_sqrs.data(), exp_mag_sqrs_filepath.c_str(), num_samples, debug );
+         read_binary_file<float>( exp_mag_sqr_sums.data(), exp_mag_sqr_sums_filepath.c_str(), num_samples, debug );
+         read_binary_file<float>( exp_norms.data(), exp_norms_filepath.c_str(), num_samples, debug );
 
       } else {
          
@@ -437,7 +444,6 @@ void NormAutocorrGPU::delay_vals16() {
 
 NormAutocorrGPU::~NormAutocorrGPU() {
    dout << "dtor called\n";
-   //d_samples.clear();    
    samples.clear();    
    samples_d16.clear();
    conj_sqrs.clear();
@@ -446,15 +452,7 @@ NormAutocorrGPU::~NormAutocorrGPU() {
    mag_sqrs.clear();
    mag_sqr_sums.clear();
    norms.clear();
-   //d_norms.clear();
 
-   /*delete [] exp_samples_d16;*/
-   /*if ( exp_conj_sqrs ) delete [] exp_conj_sqrs;*/
-   /*if ( exp_conj_sqr_sums ) delete [] exp_conj_sqr_sums;*/
-   /*if ( exp_conj_sqr_sum_mags ) delete [] exp_conj_sqr_sum_mags;*/
-   /*if ( exp_mag_sqrs ) delete [] exp_mag_sqrs;*/
-   /*if ( exp_mag_sqr_sums ) delete [] exp_mag_sqr_sums;*/
-   /*if ( exp_norms ) delete [] exp_norms;*/
    exp_samples_d16.clear();
    exp_conj_sqrs.clear();
    exp_conj_sqr_sums.clear();

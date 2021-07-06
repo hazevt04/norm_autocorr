@@ -31,6 +31,7 @@ void auto_correlation( cufftComplex* __restrict__ conj_sqrs, const cufftComplex*
 }
 
 
+// A hack to try to make the output of this match GRC's very serial moving_average
 __global__
 void calc_conj_sqr_sums( 
       cufftComplex* __restrict__ conj_sqr_sums, 
@@ -45,14 +46,24 @@ void calc_conj_sqr_sums(
    for (int index = global_index; index < num_vals; index += stride) {
       cufftComplex  t_conj_sqr_sum = make_cuFloatComplex(0.0,0.0);
 
-      for( int w_index = 0; w_index < conj_sqr_window_size; ++w_index ) {
-         t_conj_sqr_sum = cuCaddf( t_conj_sqr_sum, conj_sqrs[index + w_index] );
+      // A hack to make this match GRC's moving_average
+      // This if-else split is ill-advised in a CUDA kernel
+      if ( index == 0 ) {
+         t_conj_sqr_sum = conj_sqrs[0];
+      } else if ( ( index > 0 ) && ( index < conj_sqr_window_size) ) {
+         for( int t_index = 1; t_index < index + 1; ++t_index ) {
+            t_conj_sqr_sum = cuCaddf( t_conj_sqr_sum, conj_sqrs[t_index] );
+         }
+      } else {
+         for( int t_index = 1; t_index < index + 1; ++t_index ) {
+            t_conj_sqr_sum = cuCaddf( t_conj_sqr_sum, conj_sqrs[t_index] );
+            t_conj_sqr_sum = cuCsubf( t_conj_sqr_sum, conj_sqrs[t_index - conj_sqr_window_size] );
+         }            
       }
-      //conj_sqr_sums[index] = complex_divide_by_scalar( t_conj_sqr_sum, (float)conj_sqr_window_size );
       conj_sqr_sums[index] = t_conj_sqr_sum;
-   }
+   } // end of for (int index = global_index; index < num_vals; index += stride) {
+} // end of calc_conj_sqr_sums
 
-}
 
 __global__
 void calc_conj_sqr_sum_mags( float* __restrict__ conj_sqr_sum_mags, const cufftComplex* __restrict__ conj_sqr_sums, const int num_vals ) {
@@ -92,14 +103,21 @@ void calc_mag_sqr_sums(
 
    for (int index = global_index; index < num_vals; index += stride) {
       float  t_mag_sqr_sum = 0.0;
-      for( int w_index = 0; w_index < mag_sqr_window_size; ++w_index ) {
-         t_mag_sqr_sum = t_mag_sqr_sum + mag_sqrs[index + w_index];
+      
+      if ( index == 0 ) {
+         t_mag_sqr_sum = mag_sqrs[0];
+      } else if ( ( index > 0 ) && ( index < mag_sqr_window_size) ) {
+         for( int t_index = 1; t_index < index + 1; ++t_index ) {
+            t_mag_sqr_sum = t_mag_sqr_sum + mag_sqrs[t_index];
+         }
+      } else {
+         for( int t_index = 1; t_index < index + 1; ++t_index ) {
+            t_mag_sqr_sum = t_mag_sqr_sum + mag_sqrs[t_index] - mag_sqrs[t_index - mag_sqr_window_size];
+         }
       }
-      //mag_sqr_sums[index] = t_mag_sqr_sum/(float)mag_sqr_window_size;
       mag_sqr_sums[index] = t_mag_sqr_sum;
-   }
-
-}
+   } // end of for (int index = global_index; index < num_vals; index += stride) {
+} // end of void calc_mag_sqr_sums( 
 
 
 __global__

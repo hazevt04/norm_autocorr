@@ -36,6 +36,13 @@ void print_cufftComplexes(const cufftComplex* vals,
    const char* delim,
    const char* suffix );
 
+void print_cufftComplexes(const cufftComplex* vals,
+   const int num_vals,
+   const int start_index,
+   const char* prefix,
+   const char* delim,
+   const char* suffix );
+
 // Why doesnt CUFFT already have something like this in the API?
 inline const std::string get_cufft_status_msg(const cufftResult cufft_status) {
   const std::string status_strings[] = {

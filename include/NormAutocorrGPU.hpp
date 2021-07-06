@@ -20,8 +20,8 @@ constexpr float FREQ = 1000.f;
 constexpr float AMPLITUDE = 50.f;
 constexpr int threads_per_block = 64;//1024;
 
-const std::string default_filename = "input_samples.5.180GHz.20MHzBW.560u.LS.dat"; 
-const std::string default_exp_norms_filename = "exp_norms.5.180GHz.20MHzBW.560u.LS.dat";
+const std::string default_filename = "samples.dat"; 
+const std::string default_exp_norms_filename = "exp_norms.dat";
 
 class NormAutocorrGPU {
 public:
@@ -74,9 +74,22 @@ private:
    
    std::string filename = default_filename;
    std::string exp_norms_filename = default_exp_norms_filename;
-   
+
+   std::string exp_samples_d16_filename = "exp_samples_d16.dat";
+   std::string exp_conj_sqrs_filename = "exp_conj_sqrs.dat";
+   std::string exp_conj_sqr_sums_filename = "exp_conj_sqr_sums.dat";
+   std::string exp_conj_sqr_sum_mags_filename = "exp_conj_sqr_sum_mags.dat";
+   std::string exp_mag_sqrs_filename = "exp_mag_sqrs.dat";
+   std::string exp_mag_sqr_sums_filename = "exp_mag_sqr_sums.dat";
+
    std::string filepath = "";
    std::string exp_norms_filepath = "";
+   std::string exp_samples_d16_filepath = "";
+   std::string exp_conj_sqrs_filepath = "";
+   std::string exp_conj_sqr_sums_filepath = "";
+   std::string exp_conj_sqr_sum_mags_filepath = "";
+   std::string exp_mag_sqrs_filepath = "";
+   std::string exp_mag_sqr_sums_filepath = "";
 
    size_t num_sample_bytes = 32000;
    size_t adjusted_num_sample_bytes = 32768;
