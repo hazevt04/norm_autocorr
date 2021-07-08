@@ -1,7 +1,7 @@
 
 #include <stdio.h>
 
-#include "my_cufft_utils.hpp"
+#include "my_cufft_utils/my_cufft_utils.hpp"
 
 #include "norm_autocorr_kernel.cuh"
 

@@ -1,12 +1,13 @@
-#include <cuda_runtime.h>
-
-#include "my_utils.hpp"
-#include "my_cuda_utils.hpp"
-#include "my_cufft_utils.hpp"
 
 #include "NormAutocorrGPU.hpp"
 
 #include "norm_autocorr_kernel.cuh"
+
+#include "my_cufft_utils/my_cufft_utils.hpp"
+#include "my_cuda_utils/my_cuda_utils.hpp"
+#include "my_utils/my_utils.hpp"
+
+#include <cuda_runtime.h>
 
 void NormAutocorrGPU::initialize_samples( const int seed = 0, const bool debug = false ) {
    try {
@@ -264,7 +265,7 @@ void NormAutocorrGPU::run() {
          std::cout << "\n"; 
       }
       dout << __func__ << "(): norms Check:\n"; 
-      all_close = vals_are_close( norms.data(), exp_norms.data(), num_samples, max_diff, "norms: ", debug );
+      all_close = vals_are_close<float>( norms.data(), exp_norms.data(), num_samples, max_diff, debug );
       if (!all_close) {
          throw std::runtime_error{ std::string{__func__} + 
             std::string{"(): Mismatch between actual norms from GPU and expected norms."} };

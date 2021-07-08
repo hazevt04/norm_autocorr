@@ -1,12 +1,12 @@
 
 #include "norm_autocorr_kernel.cuh"
 
-#include "man_vec_file_io_funcs.hpp"
+#include "my_cuda_utils/man_vec_file_io_funcs.hpp"
 
-#include "managed_allocator_global.hpp"
-#include "managed_allocator_host.hpp"
+#include "my_cuda_utils/managed_allocator_global.hpp"
+#include "my_cuda_utils/managed_allocator_host.hpp"
 
-#include "my_cuda_utils.hpp"
+#include "my_cuda_utils/my_cuda_utils.hpp"
 #include "my_args.hpp"
 
 #include <numeric>

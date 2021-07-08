@@ -1,7 +1,7 @@
 #pragma once
 
-#include "my_cuda_utils.hpp"
-#include "my_cufft_utils.hpp"
+#include "my_cuda_utils/my_cuda_utils.hpp"
+#include "my_cufft_utils/my_cufft_utils.hpp"
 
 __device__ __host__ __inline__
 cufftComplex complex_divide_by_scalar( cufftComplex cval, float scalar_divisor ) {

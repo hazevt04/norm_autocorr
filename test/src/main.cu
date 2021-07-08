@@ -1,6 +1,6 @@
 // C++ File for main
 
-#include "NormAutocorrGPU.hpp"
+#include "norm_autocorr/NormAutocorrGPU.hpp"
 
 #include "parse_args.hpp"
 
