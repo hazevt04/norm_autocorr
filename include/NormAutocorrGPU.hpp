@@ -18,7 +18,7 @@
 constexpr float PI = 3.1415926535897238463f;
 constexpr float FREQ = 1000.f;
 constexpr float AMPLITUDE = 50.f;
-constexpr int threads_per_block = 64;//1024;
+constexpr int threads_per_block = 1024;
 
 const std::string default_filename = "samples.dat"; 
 const std::string default_exp_norms_filename = "exp_norms.dat";
@@ -98,7 +98,7 @@ private:
 
    int device_id = 0;
    int num_blocks = 4;
-   int threads_per_block = 64;//1024;
+   int threads_per_block = 1024;
    int num_samples = 4000;
    int adjusted_num_samples = 4096;
    int conj_sqrs_window_size = 48;

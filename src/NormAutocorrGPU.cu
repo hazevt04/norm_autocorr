@@ -400,12 +400,12 @@ void NormAutocorrGPU::gen_expected_norms() {
    try { 
       
       if ( test_select_string == "Filebased" ) {
-         read_binary_file<cufftComplex>( exp_samples_d16.data(), exp_samples_d16_filepath.c_str(), num_samples, debug );
-         read_binary_file<cufftComplex>( exp_conj_sqrs.data(), exp_conj_sqrs_filepath.c_str(), num_samples, debug );
-         read_binary_file<cufftComplex>( exp_conj_sqr_sums.data(), exp_conj_sqr_sums_filepath.c_str(), num_samples, debug );
-         read_binary_file<float>( exp_conj_sqr_sum_mags.data(), exp_conj_sqr_sum_mags_filepath.c_str(), num_samples, debug );
-         read_binary_file<float>( exp_mag_sqrs.data(), exp_mag_sqrs_filepath.c_str(), num_samples, debug );
-         read_binary_file<float>( exp_mag_sqr_sums.data(), exp_mag_sqr_sums_filepath.c_str(), num_samples, debug );
+         /*read_binary_file<cufftComplex>( exp_samples_d16.data(), exp_samples_d16_filepath.c_str(), num_samples, debug );*/
+         /*read_binary_file<cufftComplex>( exp_conj_sqrs.data(), exp_conj_sqrs_filepath.c_str(), num_samples, debug );*/
+         /*read_binary_file<cufftComplex>( exp_conj_sqr_sums.data(), exp_conj_sqr_sums_filepath.c_str(), num_samples, debug );*/
+         /*read_binary_file<float>( exp_conj_sqr_sum_mags.data(), exp_conj_sqr_sum_mags_filepath.c_str(), num_samples, debug );*/
+         /*read_binary_file<float>( exp_mag_sqrs.data(), exp_mag_sqrs_filepath.c_str(), num_samples, debug );*/
+         /*read_binary_file<float>( exp_mag_sqr_sums.data(), exp_mag_sqr_sums_filepath.c_str(), num_samples, debug );*/
          read_binary_file<float>( exp_norms.data(), exp_norms_filepath.c_str(), num_samples, debug );
 
       } else {
@@ -452,7 +452,6 @@ NormAutocorrGPU::~NormAutocorrGPU() {
    mag_sqrs.clear();
    mag_sqr_sums.clear();
    norms.clear();
-
    exp_samples_d16.clear();
    exp_conj_sqrs.clear();
    exp_conj_sqr_sums.clear();
