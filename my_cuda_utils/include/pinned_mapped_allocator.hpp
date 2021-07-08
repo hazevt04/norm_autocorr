@@ -1,12 +1,20 @@
 #pragma once
 
-// Managed Allocator Class
-// Allows use of STL clases (like std::vector) with cudaMallocManaged() and cudaFree()
-// From Jared Hoberock, NVIDIA:
+#include <cuda_runtime.h>
+
+#include <exception>
+#include <iostream>
+#include <stdexcept>
+#include <vector>
+
+// Pinned Allocator Class
+// Allows use of STL clases (like std::vector) with cudaMalloc() and cudaFree()
+// (like thrust's device_vector)
+// Based on Jared Hoberock, NVIDIA:
 // https://github.com/jaredhoberock/managed_allocator/blob/master/managed_allocator.hpp
 
 template<class T>
-class managed_allocator_global {
+class pinned_mapped_allocator {
   public:
     using value_type = T;
     using reference = T&;
@@ -15,11 +23,11 @@ class managed_allocator_global {
     // Make sure that only 1 allocation is done
     // per instance of this class
     bool memory_is_allocated;
-    managed_allocator_global():
+    pinned_mapped_allocator():
       memory_is_allocated( false ) {}
 
     template<class U>
-    managed_allocator_global(const managed_allocator_global<U>&):
+    pinned_mapped_allocator(const pinned_mapped_allocator<U>&):
       memory_is_allocated( false ) {}
   
     value_type* allocate(size_t n) {
@@ -27,10 +35,10 @@ class managed_allocator_global {
          value_type* result = nullptr;
          if ( !memory_is_allocated ) {
      
-            cudaError_t error = cudaMallocManaged(&result, n*sizeof(T), cudaMemAttachGlobal);
+            cudaError_t error = cudaHostAlloc(&result, n*sizeof(T), cudaHostAllocMapped);
         
             if(error != cudaSuccess) {
-              throw std::runtime_error("managed_allocator_global::allocate(): cudaMallocManaged( cudaMemAttachGlobal )");
+              throw std::runtime_error("pinned_mapped_allocator::allocate(): cudaHostAlloc()");
             }
             memory_is_allocated = true;
          }
@@ -40,26 +48,25 @@ class managed_allocator_global {
          return nullptr;
       }
     }
-  
+    
     void deallocate(value_type* ptr, size_t size) {
        if ( ptr ) {
-         cudaFree( ptr );
+         cudaFreeHost( ptr );
          ptr = nullptr;
        }
-    }
+    } 
 };
 
 template<class T1, class T2>
-bool operator==(const managed_allocator_global<T1>&, const managed_allocator_global<T2>&) {
+bool operator==(const pinned_mapped_allocator<T1>&, const pinned_mapped_allocator<T2>&) {
   return true;
 }
 
 template<class T1, class T2>
-bool operator!=(const managed_allocator_global<T1>& lhs, const managed_allocator_global<T2>& rhs) {
+bool operator!=(const pinned_mapped_allocator<T1>& lhs, const pinned_mapped_allocator<T2>& rhs) {
   return !(lhs == rhs);
 }
 
 template<class T>
-using managed_vector_global = std::vector<T, managed_allocator_global<T>>;
-
+using pinned_mapped_vector = std::vector<T, pinned_mapped_allocator<T>>;
 

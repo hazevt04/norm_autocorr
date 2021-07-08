@@ -1,10 +1,10 @@
 #pragma once
 
 
-#include "managed_allocator_global.hpp"
-#include "managed_allocator_host.hpp"
+#include "my_cuda_utils/managed_allocator_global.hpp"
+#include "my_cuda_utils/managed_allocator_host.hpp"
 
-#include "my_file_io_funcs.hpp"
+#include "my_utils/my_file_io_funcs.hpp"
 
 template<typename T>
 void write_binary_file(

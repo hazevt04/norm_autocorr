@@ -1,4 +1,4 @@
-#include "my_cufft_utils.hpp"
+#include "my_cufft_utils/my_cufft_utils.hpp"
 
 void gen_cufftComplexes( cufftComplex* complexes, const int num_complexes, const float lower, const float upper ) {
    std::random_device random_dev;

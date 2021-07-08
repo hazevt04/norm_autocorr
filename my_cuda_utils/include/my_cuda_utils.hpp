@@ -1,9 +1,10 @@
 #pragma once
 
+#include "my_utils/my_utils.hpp"
+#include <cuda_runtime.h>
+
 // My Utility Macros for CUDA
 
-#include <cuda_runtime.h>
-#include "my_utils.hpp"
 
 // Use for Classes with CUDA (for example)
 #ifdef __CUDACC__

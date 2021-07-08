@@ -1,13 +1,19 @@
 #pragma once
 
-// Device Allocator Class
-// Allows use of STL clases (like std::vector) with cudaMalloc() and cudaFree()
-// (like thrust's device_vector)
-// Based on Jared Hoberock, NVIDIA:
+#include <cuda_runtime.h>
+
+#include <exception>
+#include <iostream>
+#include <stdexcept>
+#include <vector>
+
+// Managed Allocator Class
+// Allows use of STL clases (like std::vector) with cudaMallocManaged() and cudaFree()
+// From Jared Hoberock, NVIDIA:
 // https://github.com/jaredhoberock/managed_allocator/blob/master/managed_allocator.hpp
 
 template<class T>
-class device_allocator {
+class managed_allocator_global {
   public:
     using value_type = T;
     using reference = T&;
@@ -16,11 +22,11 @@ class device_allocator {
     // Make sure that only 1 allocation is done
     // per instance of this class
     bool memory_is_allocated;
-    device_allocator():
+    managed_allocator_global():
       memory_is_allocated( false ) {}
 
     template<class U>
-    device_allocator(const device_allocator<U>&):
+    managed_allocator_global(const managed_allocator_global<U>&):
       memory_is_allocated( false ) {}
   
     value_type* allocate(size_t n) {
@@ -28,10 +34,10 @@ class device_allocator {
          value_type* result = nullptr;
          if ( !memory_is_allocated ) {
      
-            cudaError_t error = cudaMalloc(&result, n*sizeof(T));
+            cudaError_t error = cudaMallocManaged(&result, n*sizeof(T), cudaMemAttachGlobal);
         
             if(error != cudaSuccess) {
-              throw std::runtime_error("device_allocator::allocate(): cudaMalloc()");
+              throw std::runtime_error("managed_allocator_global::allocate(): cudaMallocManaged( cudaMemAttachGlobal )");
             }
             memory_is_allocated = true;
          }
@@ -41,25 +47,26 @@ class device_allocator {
          return nullptr;
       }
     }
-    
+  
     void deallocate(value_type* ptr, size_t size) {
        if ( ptr ) {
          cudaFree( ptr );
          ptr = nullptr;
        }
-    } 
+    }
 };
 
 template<class T1, class T2>
-bool operator==(const device_allocator<T1>&, const device_allocator<T2>&) {
+bool operator==(const managed_allocator_global<T1>&, const managed_allocator_global<T2>&) {
   return true;
 }
 
 template<class T1, class T2>
-bool operator!=(const device_allocator<T1>& lhs, const device_allocator<T2>& rhs) {
+bool operator!=(const managed_allocator_global<T1>& lhs, const managed_allocator_global<T2>& rhs) {
   return !(lhs == rhs);
 }
 
 template<class T>
-using device_vector = std::vector<T, device_allocator<T>>;
+using managed_vector_global = std::vector<T, managed_allocator_global<T>>;
+
 

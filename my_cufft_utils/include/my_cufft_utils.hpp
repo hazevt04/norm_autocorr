@@ -1,12 +1,13 @@
 #pragma once
 
-// My Utility Macros for cuFFT, CUDA's FFT library
+#include "my_utils/my_utils.hpp"
 
 #include <cmath>
 #include <random>
 
 #include <cufft.h>
-#include "my_utils.hpp"
+
+// My Utility Macros for cuFFT, CUDA's FFT library
 
 /////////////////////////////
 // CUFFT Stuff

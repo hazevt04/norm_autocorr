@@ -6,20 +6,23 @@
 #include <cstdio>
 #include <iostream>
 
+#include <algorithm>
 #include <chrono>
+#include <complex>
 #include <cstddef>
 #include <cstdlib>
+#include <exception>
 #include <iterator>
+#include <memory>
+#include <random>
 #include <stdarg.h>
 #include <string>
 #include <vector>
-#include <complex>
-#include <algorithm>
-#include <random>
-#include <exception>
-#include <memory>
 
-#include "VariadicToOutputStream.hpp"
+/// My C++ Utility Functions and Macros
+/// Functions and macros to be reused across all programming projects
+/// gleamed from various sources and in some cases, tweaked
+/// personal preference.
 
 #ifndef check_status
 #   define check_status(status, msg)                     \
@@ -90,33 +93,84 @@
 #   define MAX(a, b) ((a) > (b)) ? (a) : (b);
 #endif
 
+#ifndef MIN
+#   define MIN(a, b) ((a) < (b)) ? (a) : (b);
+#endif
+
 
 #ifndef CEILING
 #   define CEILING(a, b) ((a) + ((b)-1)) / (b);
 #endif
 
+#ifndef dout
+#   define dout debug&& std::cout
+#endif
+
 // Already included in C++14
-template<typename T, typename... Args>
+template <typename T, typename... Args>
 std::unique_ptr<T> my_make_unique(Args&&... args) {
-    return std::unique_ptr<T>(new T(std::forward<Args>(args)...));
+   return std::unique_ptr<T>(new T(std::forward<Args>(args)...));
 }
 
-#ifndef dout
-#  define dout debug && std::cout
-#endif
+// From
+// https://stackoverflow.com/questions/16605967/set-precision-of-stdto-string-when-converting-floating-point-values#16606128
+#include <sstream>
+
+template <typename T>
+std::string to_string_with_precision(const T& a_value, const int places = 6) {
+   std::ostringstream out;
+   out.precision(places);
+   out << std::fixed << a_value;
+   return out.str();
+}
+
+
+// Erase/Remove Idiom
+inline void strip_quotes(std::string& str) {
+   // move the non quote characters to the front
+   // then erase the rest of the characters (the quotes)
+   str.erase(std::remove(str.begin(), str.end(), '\"'), str.end());
+}
+
 
 // Hacker's Delight Second Edition pg 44 ('doz')
 // Only valid for signed integers, -2^30 < a,b <=(2^30)-1
 // or unsigned integers, 0 < a,b <= (2^31)-1
 inline int difference_or_zero(int a, int b) { return ((a - b) & ~((a - b) >> 31)); }
 
+// Just in case there is no intrinsic
+// From Hacker's Delight
+int my_popcount(unsigned int x);
+
+int my_count_leading_zeros(unsigned int x);
+
+int my_ilog2(unsigned int x);
+
+int my_modulus(const unsigned int& val, const unsigned int& div);
+
+bool is_divisible_by(const unsigned int& val, const unsigned int& div);
+
+inline bool is_power_of_two(const int& val) {
+   // return ( my_popcount(val) == 1 );
+   return (__builtin_popcount(val) == 1);
+}
+
+// Hacker's Delight Second Edition pg 291 ('ilog2')
+inline int ilog2(const int& val) { return (31 - __builtin_clz(val)); }
+
 
 #define MILLISECONDS_PER_SECOND (1000.0f)
-typedef std::chrono::steady_clock Steady_Clock;
-typedef std::chrono::time_point<std::chrono::steady_clock> Time_Point;
-typedef std::chrono::duration<float, std::milli> Duration_ms;
-typedef std::chrono::duration<float, std::micro> Duration_us;
-typedef std::chrono::duration<float, std::nano> Duration_ns;
+using Steady_Clock = std::chrono::steady_clock;
+
+using Time_Point = std::chrono::time_point<std::chrono::steady_clock>;
+
+using Duration = std::chrono::duration<float, std::milli>;
+using Duration_ms = std::chrono::duration<float, std::milli>;
+using Duration_us = std::chrono::duration<float, std::micro>;
+using Duration_ns = std::chrono::duration<float, std::nano>;
+
+using System_Clock = std::chrono::system_clock;
+using System_Time_Point = std::chrono::time_point<std::chrono::system_clock>;
 
 // Example usage:
 // Time_Point start = Steady_Clock::now();
@@ -126,6 +180,14 @@ typedef std::chrono::duration<float, std::nano> Duration_ns;
 // );
 
 bool string_is_palindrome(const std::string& s);
+
+// Boost? Hurrumph!
+// String splitter from SO:
+// https://stackoverflow.com/questions/14265581/parse-split-a-string-in-c-using-string-delimiter-standard-c
+void my_string_splitter(std::vector<std::string>& str_strings,
+   std::string& str,
+   const std::string delimiter,
+   const bool debug);
 
 template <class T>
 void gen_vals(std::vector<T>& vals, const T lower, const T upper) {
@@ -146,34 +208,33 @@ void gen_complex_vals(std::complex<T>& vals, const T lower, const T upper, const
    }
 }
 
-inline float gen_float( const float lower, const float upper ) {
+inline float gen_float(const float lower, const float upper) {
    std::random_device random_dev;
    std::mt19937 mersenne_gen(random_dev());
    std::uniform_real_distribution<> dist(lower, upper);
-   return dist( mersenne_gen );
-
+   return dist(mersenne_gen);
 }
 
 // use for floats or doubles, AKA 'RealType'
 template <class RealType>
-void gen_reals( RealType* reals, const int num_reals, const float lower, const float upper ) {
+void gen_reals(RealType* reals, const int num_reals, const float lower, const float upper) {
    std::random_device random_dev;
    std::mt19937 mersenne_gen(random_dev());
    std::uniform_real_distribution<RealType> dist(lower, upper);
-   for( int real_index = 0; real_index < num_reals; ++real_index ) {
-      reals[real_index] = dist( mersenne_gen );
-   } 
+   for (int real_index = 0; real_index < num_reals; ++real_index) {
+      reals[real_index] = dist(mersenne_gen);
+   }
 }
 
 // use for floats or doubles, AKA 'RealType'
 template <class RealType>
-void gen_reals( std::vector<RealType>& reals, const float lower, const float upper ) {
+void gen_reals(std::vector<RealType>& reals, const float lower, const float upper) {
    std::random_device random_dev;
    std::mt19937 mersenne_gen(random_dev());
    std::uniform_real_distribution<RealType> dist(lower, upper);
-   for ( auto& real: reals ) {
-      real = dist( mersenne_gen );
-   } 
+   for (auto& real : reals) {
+      real = dist(mersenne_gen);
+   }
 }
 
 #include <iomanip>
@@ -194,11 +255,14 @@ void print_vals(const T* vals,
    const char* prefix = "",
    const char* delim = " ",
    const char* suffix = "\n") {
+
+   std::cout << prefix;
    for (int index = 0; index < num_vals; ++index) {
-      std::cout << "\n" << prefix << "Index " << index << ": " << vals[index] << ((index == num_vals - 1) ? "\n" : delim);
+      std::cout << "Index " << index << ": " << vals[index] << delim;
    }
    std::cout << suffix;
 }
+
 
 template <typename T>
 void print_vals(const T* vals,
@@ -207,13 +271,14 @@ void print_vals(const T* vals,
    const char* prefix = "",
    const char* delim = " ",
    const char* suffix = "\n") {
+
+   int max_index = start_index + num_vals;
    std::cout << prefix;
-   for (int index = start_index; index < (start_index + num_vals); ++index) {
-      std::cout << prefix << vals[index] << ((index == num_vals - 1) ? "\n" : delim);
+   for (int index = start_index; index < max_index; ++index) {
+      std::cout << "Index " << index << ": " << std::setprecision(12) << vals[index] << delim;
    }
    std::cout << suffix;
 }
-
 
 template <typename T>
 bool compare_vals(const T* lvals, const T* rvals, int num_vals) {
@@ -233,7 +298,7 @@ std::pair<bool, int> mismatch_where(const T* lvals, const T* rvals, int num_vals
          std::cout << "Mismatch:\n";
          std::cout << "Lval[" << index << "] = " << std::setprecision(9) << lvals[index] << "\n";
          std::cout << "Rval[" << index << "] = " << std::setprecision(9) << rvals[index] << "\n";
-         return std::pair<bool, int>{false,index};
+         return std::pair<bool, int>{false, index};
       }
    }
    return std::pair<bool, int>{true, -1};
@@ -251,7 +316,7 @@ bool compare_vals(const std::vector<T>& lvals, const std::vector<T>& rvals) {
       }
    }
 
-   return true; 
+   return true;
 }
 
 template <typename T>
@@ -259,26 +324,27 @@ std::pair<bool, int> mismatch_where(const std::vector<T>& lvals, const std::vect
    for (int index = 0; index < (int)lvals.size(); ++index) {
       if (lvals[index] != rvals[index]) {
          std::cout << "Mismatch:\n";
-         std::cout << "Lval[" << index << "] = " << std::setprecision(9)<< lvals[index] << "\n";
+         std::cout << "Lval[" << index << "] = " << std::setprecision(9) << lvals[index] << "\n";
          std::cout << "Rval[" << index << "] = " << std::setprecision(9) << rvals[index] << "\n";
-         return std::pair<bool, int>{false,index};
+         return std::pair<bool, int>{false, index};
       }
    }
    return std::pair<bool, int>{true, -1};
 }
 
-template<typename T>
+template <typename T>
 using complex_vec = std::vector<std::complex<T>>;
 
 
-template<typename T>
-bool complex_vals_are_close( const complex_vec<T>& lvals, const complex_vec<T>& rvals, const T& max_diff ) {
+template <typename T>
+bool complex_vals_are_close(
+   const complex_vec<T>& lvals, const complex_vec<T>& rvals, const T& max_diff) {
 
-   for( size_t index = 0; index != lvals.size(); ++index ) {
-      T abs_diff_real = abs( lvals[index].real() - rvals[index].real() );
-      T abs_diff_imag = abs( lvals[index].imag() - rvals[index].imag() );
+   for (size_t index = 0; index != lvals.size(); ++index) {
+      T abs_diff_real = abs(lvals[index].real() - rvals[index].real());
+      T abs_diff_imag = abs(lvals[index].imag() - rvals[index].imag());
 
-      if ( ( abs_diff_real > max_diff ) || ( abs_diff_imag > max_diff ) ) {
+      if ((abs_diff_real > max_diff) || (abs_diff_imag > max_diff)) {
          std::cout << "Mismatch:\n";
          std::cout << "Lval[" << index << "] = {" << lvals[index] << "}\n";
          std::cout << "Rval[" << index << "] = {" << rvals[index] << "}\n";
@@ -291,36 +357,34 @@ bool complex_vals_are_close( const complex_vec<T>& lvals, const complex_vec<T>& 
 }
 
 
-template<typename T>
-std::pair<bool,int> complex_mismatch_where( const complex_vec<T>& lvals, const complex_vec<T>& rvals, const T& max_diff, const std::string prefix="", const bool debug=false ) {
+template <typename T>
+std::pair<bool, int> complex_mismatch_where(
+   const complex_vec<T>& lvals, const complex_vec<T>& rvals, const T& max_diff) {
 
-   for( size_t index = 0; index != lvals.size(); ++index ) {
-      T abs_diff_real = abs( lvals[index].real() - rvals[index].real() );
-      T abs_diff_imag = abs( lvals[index].imag() - rvals[index].imag() );
+   for (size_t index = 0; index != lvals.size(); ++index) {
+      T abs_diff_real = abs(lvals[index].real() - rvals[index].real());
+      T abs_diff_imag = abs(lvals[index].imag() - rvals[index].imag());
 
-      if ( ( abs_diff_real > max_diff ) || ( abs_diff_imag > max_diff ) ) {
-         std::cout << prefix;
+      if ((abs_diff_real > max_diff) || (abs_diff_imag > max_diff)) {
          std::cout << "Mismatch:\n";
          std::cout << "Lval[" << index << "] = {" << lvals[index] << "}\n";
          std::cout << "Rval[" << index << "] = {" << rvals[index] << "}\n";
          std::cout << "Difference = {" << abs_diff_real << ", " << abs_diff_imag << "}\n";
          std::cout << "Max Difference = " << max_diff << "\n";
-         return std::pair<bool,int>{false,index};
+         return std::pair<bool, int>{false, index};
       }
    }
-   dout << __func__ << "(): " << prefix << " All matched.\n";
-   return std::pair<bool,int>{true,-1};
+   return std::pair<bool, int>{true, -1};
 }
 
 
-template<typename T>
-bool vals_are_close( const std::vector<T>& lvals, const std::vector<T>& rvals, const T& max_diff, const std::string& prefix="", const bool debug=false ) {
+template <typename T>
+bool vals_are_close(const std::vector<T>& lvals, const std::vector<T>& rvals, const T& max_diff) {
 
-   for( size_t index = 0; index != lvals.size(); ++index ) {
-      T abs_diff = abs( lvals[index] - rvals[index] );
+   for (size_t index = 0; index != lvals.size(); ++index) {
+      T abs_diff = abs(lvals[index] - rvals[index]);
 
-      if ( ( abs_diff > max_diff ) ) {
-         std::cout << prefix;
+      if ((abs_diff > max_diff)) {
          std::cout << "Mismatch:\n";
          std::cout << "Lval[" << index << "] = " << std::setprecision(9) << lvals[index] << "\n";
          std::cout << "Rval[" << index << "] = " << std::setprecision(9) << rvals[index] << "\n";
@@ -329,22 +393,18 @@ bool vals_are_close( const std::vector<T>& lvals, const std::vector<T>& rvals, c
          return false;
       }
    }
-   dout << __func__ << "(): " << prefix << " All matched.\n";
    return true;
 }
 
 
-template<typename T>
-bool vals_are_close( const T* lvals, const T* rvals, const int num_vals, const T& max_diff, const std::string& prefix="", const bool debug=false ) {
+template <typename T>
+bool vals_are_close(
+   const T* lvals, const T* rvals, const int num_vals, const T& max_diff, const bool debug) {
 
-   dout << __func__ << "(): " << prefix << " num_vals is " << num_vals << "\n";
-   if ( lvals == nullptr ) std::cout << __func__ << "(): " << prefix << "lvals is NULL!\n"; 
-   if ( rvals == nullptr ) std::cout << __func__ << "(): " << prefix << "rvals is NULL!\n"; 
-   for( int index = 0; index < num_vals; ++index ) {
-      T abs_diff = abs( lvals[index] - rvals[index] );
+   for (int index = 0; index < num_vals; ++index) {
+      T abs_diff = abs(lvals[index] - rvals[index]);
 
-      if ( ( abs_diff > max_diff ) ) {
-         std::cout << __func__ << "(): " << prefix;
+      if ((abs_diff > max_diff)) {
          std::cout << "Mismatch:\n";
          std::cout << "Lval[" << index << "] = " << std::setprecision(9) << lvals[index] << "\n";
          std::cout << "Rval[" << index << "] = " << std::setprecision(9) << rvals[index] << "\n";
@@ -353,45 +413,46 @@ bool vals_are_close( const T* lvals, const T* rvals, const int num_vals, const T
          return false;
       }
    }
-   dout << __func__ << "(): " << prefix << " All matched.\n";
    return true;
 }
 
-template<typename T>
-std::pair<bool,int> mismatch_where( const std::vector<T>& lvals, const std::vector<T>& rvals, const T& max_diff, const bool debug ) {
+template <typename T>
+std::pair<bool, int> mismatch_where(
+   const std::vector<T>& lvals, const std::vector<T>& rvals, const T& max_diff, const bool debug) {
 
-   for( size_t index = 0; index != lvals.size(); ++index ) {
-      const T abs_diff = abs( lvals[index] - rvals[index] );
+   for (size_t index = 0; index != lvals.size(); ++index) {
+      const T abs_diff = abs(lvals[index] - rvals[index]);
 
-      if ( ( abs_diff > max_diff ) ) {
+      if ((abs_diff > max_diff)) {
          std::cout << "Mismatch:\n";
          std::cout << "Lval[" << index << "] = " << std::setprecision(9) << lvals[index] << "\n";
          std::cout << "Rval[" << index << "] = " << std::setprecision(9) << rvals[index] << "\n";
          std::cout << "Difference = " << abs_diff << "\n";
          std::cout << "Max Difference = " << max_diff << "\n";
-         return std::pair<bool,int>{false,index};
+         return std::pair<bool, int>{false, index};
       }
    }
-   return std::pair<bool,int>{true,-1};
+   return std::pair<bool, int>{true, -1};
 }
 
 
-template<typename T>
-std::pair<bool,int> mismatch_where( const T* lvals, const T* rvals, const int num_vals, const T& max_diff, const bool debug ) {
+template <typename T>
+std::pair<bool, int> mismatch_where(
+   const T* lvals, const T* rvals, const int num_vals, const T& max_diff, const bool debug) {
 
-   for( int index = 0; index < num_vals; ++index ) {
-      T abs_diff = abs( lvals[index] - rvals[index] );
+   for (int index = 0; index < num_vals; ++index) {
+      T abs_diff = abs(lvals[index] - rvals[index]);
 
-      if ( ( abs_diff > max_diff ) ) {
+      if ((abs_diff > max_diff)) {
          dout << "Mismatch:\n";
          dout << "Lval[" << index << "] = " << std::setprecision(9) << lvals[index] << "\n";
          dout << "Rval[" << index << "] = " << std::setprecision(9) << rvals[index] << "\n";
          dout << "Difference = " << std::setprecision(9) << abs_diff << "\n";
          dout << "Max Difference = " << std::setprecision(9) << max_diff << "\n";
-         return std::pair<bool,int>{false,index};
+         return std::pair<bool, int>{false, index};
       }
    }
-   return std::pair<bool,int>{true,-1};
+   return std::pair<bool, int>{true, -1};
 }
 
 
@@ -407,4 +468,7 @@ inline std::string decode_status(int status) {
    return std::string("Unknown status value: " + std::to_string(status) + "\n");
 }
 
-
+// Returns true if count is a multiple of period, which must be a power of 2
+inline bool do_periodic_check( const int& count, const int& period ) {
+   return ( count != 0 ) && ( 0 == (count & ((period-1)) ) );
+}
